@@ -1,8 +1,19 @@
+import re
 from user import User
 
 
 class Trainer(User):
-    def __init__(self, id_user=None, name=None, age=None, email=None, phone=None, specialty=None, start_time=None, end_time=None):
+    def __init__(
+        self,
+        id_user=None,
+        name=None,
+        age=None,
+        email=None,
+        phone=None,
+        specialty=None,
+        start_time=None,
+        end_time=None
+    ):
         super().__init__(id_user, name, age, email, phone)
         self._specialty = specialty
         self._start_time = start_time
@@ -34,6 +45,8 @@ class Trainer(User):
 
     @start_time.setter
     def start_time(self, start_time):
+        if start_time and not re.match(r'^([01]\d|2[0-3]):([0-5]\d)$', start_time):
+            raise ValueError("The time format must be HH:MM (24h)")
         self._start_time = start_time
 
     @property
@@ -42,6 +55,8 @@ class Trainer(User):
 
     @end_time.setter
     def end_time(self, end_time):
+        if end_time and not re.match(r'^([01]\d|2[0-3]):([0-5]\d)$', end_time):
+            raise ValueError("The time format must be HH:MM (24h)")
         self._end_time = end_time
 
     def to_dict(self):
