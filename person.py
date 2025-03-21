@@ -1,9 +1,14 @@
+from datetime import datetime
+
+
 class Person:
-    def __init__(self, name=None, age=None, email=None, phone=None):
+    def __init__(self, name=None, age=None, email=None, phone=None, created_at=None):
+        # Ajustar el formato de created_at para eliminar los minutos
         self._name = name
         self._age = age
         self._email = email
         self._phone = phone
+        self._created_at = created_at or datetime.now().strftime("%Y-%m-%d %H:00")
 
     def __str__(self):
         return f'''
@@ -11,6 +16,7 @@ class Person:
             Age: {self._age}
             Email: {self._email}
             Phone: {self._phone}
+            Created At: {self._created_at}
         '''
 
     @property
@@ -45,16 +51,29 @@ class Person:
     def phone(self, phone):
         self._phone = phone
 
+    @property
+    def created_at(self):
+        return self._created_at
+
+    @created_at.setter
+    def created_at(self, created_at):
+        try:
+            datetime.strptime(created_at, "%Y-%m-%d %H:00")
+            self._created_at = created_at
+        except ValueError:
+            raise ValueError("created_at must be in the format 'YYYY-MM-DD HH:00'")
+
     def to_dict(self):
         return {
             "name": self._name,
             "age": self._age,
             "email": self._email,
             "phone": self._phone,
+            "created_at": self._created_at
         }
 
 
 if __name__ == "__main__":
-    person_test = Person("Antonio", 26, "email@email.com", "1234567890")
+    person_test = Person("Antonio", 26, "email@email.com", "1234567890", "2021-09-01 14:00")
     print(person_test.__str__())
     print(person_test.to_dict())
