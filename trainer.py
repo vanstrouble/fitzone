@@ -5,23 +5,24 @@ from user import User
 class Trainer(User):
     def __init__(
         self,
-        id_user=None,
         name=None,
         age=None,
         email=None,
         phone=None,
         specialty=None,
         start_time=None,
-        end_time=None
+        end_time=None,
+        created_at=None,
     ):
-        super().__init__(id_user, name, age, email, phone)
+        super().__init__(name, age, email, phone, created_at)
+        self._unique_id = None
         self._specialty = specialty
         self._start_time = start_time
         self._end_time = end_time
 
     def __str__(self):
         return f'''
-            ID: {self.id_user}
+            ID: {self.unique_id}
             Name: {self.name}
             Age: {self.age}
             Email: {self.email}
@@ -29,6 +30,7 @@ class Trainer(User):
             Specialty: {self._specialty}
             Start Time: {self._start_time}
             End Time: {self._end_time}
+            Created At: {self.created_at}
         '''
 
     @property
@@ -61,7 +63,6 @@ class Trainer(User):
 
     def to_dict(self):
         return {
-            "id_user": self.id_user,
             "name": self.name,
             "age": self.age,
             "email": self.email,
@@ -69,12 +70,13 @@ class Trainer(User):
             "specialty": self._specialty,
             "start_time": self._start_time,
             "end_time": self._end_time,
+            "created_at": self.created_at,
         }
 
 
 if __name__ == "__main__":
     trainer_test = Trainer(
-        1, "Antonio", 26, "email@email.com", "1234567890", "Crossfit", "08:00", "16:00"
+        "Antonio", 26, "email@email.com", "1234567890", "Crossfit", "08:00", "16:00"
     )
     print(trainer_test.__str__())
     print(trainer_test.to_dict())

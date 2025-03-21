@@ -3,7 +3,6 @@ from datetime import datetime
 
 class Person:
     def __init__(self, name=None, age=None, email=None, phone=None, created_at=None):
-        # Ajustar el formato de created_at para eliminar los minutos
         self._name = name
         self._age = age
         self._email = email
