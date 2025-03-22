@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, Time
 
 Base = declarative_base()
 
@@ -26,7 +26,6 @@ class PersonDB(Base):
 class UserDB(PersonDB):
     __tablename__ = "users"
 
-    id = Column(Integer, ForeignKey("persons.id"), primary_key=True)
     membership_type = Column(String(50))
 
     __mapper_args__ = {"polymorphic_identity": "user"}
@@ -35,10 +34,9 @@ class UserDB(PersonDB):
 class TrainerDB(PersonDB):
     __tablename__ = "trainers"
 
-    id = Column(Integer, ForeignKey("persons.id"), primary_key=True)
     specialty = Column(String(100))
-    start_time = Column(String(10))
-    end_time = Column(String(10))
+    start_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)
 
     __mapper_args__ = {"polymorphic_identity": "trainer"}
 
@@ -46,7 +44,6 @@ class TrainerDB(PersonDB):
 class AdminDB(PersonDB):
     __tablename__ = "admins"
 
-    id = Column(Integer, ForeignKey("persons.id"), primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String(128), nullable=False)
     role = Column(String(20), nullable=False)  # superadmin, admin
