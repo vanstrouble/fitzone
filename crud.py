@@ -1,6 +1,6 @@
 from database import SessionLocal
 from models import UserDB, TrainerDB, AdminDB
-from converters import db_to_user, db_to_trainer, user_to_db, trainer_to_db
+from converters import db_to_admin, db_to_user, db_to_trainer, user_to_db, trainer_to_db
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 
@@ -122,5 +122,177 @@ def create_trainer(trainer):
         session.close()
 
 
-# TODO: Implement get_trainer, get_all_trainers, update_trainer, delete_trainer
-# following the same pattern
+def get_trainer(unique_id):
+    """Gets a trainer by their ID"""
+    session = SessionLocal()
+    try:
+        trainer_db = session.query(TrainerDB).filter(TrainerDB.id == unique_id).first()
+        if trainer_db:
+            return db_to_trainer(trainer_db)
+        return None
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting trainer: {str(e)}")
+        return None
+    finally:
+        session.close()
+
+
+def get_all_trainers():
+    """Gets all trainers"""
+    session = SessionLocal()
+    try:
+        trainers_db = session.query(TrainerDB).all()
+        return [db_to_trainer(trainer_db) for trainer_db in trainers_db]
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting trainers: {str(e)}")
+        return []
+    finally:
+        session.close()
+
+
+def update_trainer(trainer):
+    """Updates an existing trainer"""
+    if not trainer.unique_id:
+        logger.error("Cannot update a trainer without an ID")
+        return False
+
+    session = SessionLocal()
+    try:
+        trainer_db = session.query(TrainerDB).filter(TrainerDB.id == trainer.unique_id).first()
+        if not trainer_db:
+            logger.warning(f"Trainer with ID {trainer.unique_id} not found")
+            return False
+
+        trainer_db.name = trainer.name
+        trainer_db.age = trainer.age
+        trainer_db.email = trainer.email
+        trainer_db.phone = trainer.phone
+        trainer_db.specialty = trainer.specialty
+        trainer_db.start_time = trainer.start_time
+        trainer_db.end_time = trainer.end_time
+
+        session.commit()
+        return True
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error updating trainer: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+
+def delete_trainer(unique_id):
+    """Deletes a trainer by their ID"""
+    session = SessionLocal()
+    try:
+        trainer_db = session.query(TrainerDB).filter(TrainerDB.id == unique_id).first()
+        if not trainer_db:
+            logger.warning(f"Trainer with ID {unique_id} not found")
+            return False
+
+        session.delete(trainer_db)
+        session.commit()
+        return True
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error deleting trainer: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+
+def create_admin(admin):
+    """Creates a new admin in the database"""
+    session = SessionLocal()
+    try:
+        admin_db = AdminDB(
+            username=admin.username,
+            password_hash=admin.password,
+            role=admin.rol,
+            created_at=admin.created_at,
+        )
+        session.add(admin_db)
+        session.commit()
+        admin.unique_id = admin_db.id
+        return admin
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error creating admin: {str(e)}")
+        return None
+    finally:
+        session.close()
+
+
+def get_admin(unique_id):
+    """Gets an admin by their ID"""
+    session = SessionLocal()
+    try:
+        admin_db = session.query(AdminDB).filter(AdminDB.id == unique_id).first()
+        if admin_db:
+            return db_to_admin(admin_db)
+        return None
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting admin: {str(e)}")
+        return None
+    finally:
+        session.close()
+
+
+def get_all_admins():
+    """Gets all admins"""
+    session = SessionLocal()
+    try:
+        admins_db = session.query(AdminDB).all()
+        return [db_to_admin(admin_db) for admin_db in admins_db]
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting admins: {str(e)}")
+        return []
+    finally:
+        session.close()
+
+
+def update_admin(admin):
+    """Updates an existing admin"""
+    if not admin.unique_id:
+        logger.error("Cannot update an admin without an ID")
+        return False
+
+    session = SessionLocal()
+    try:
+        admin_db = session.query(AdminDB).filter(AdminDB.id == admin.unique_id).first()
+        if not admin_db:
+            logger.warning(f"Admin with ID {admin.unique_id} not found")
+            return False
+
+        admin_db.username = admin.username
+        admin_db.password_hash = admin.password
+        admin_db.role = admin.role
+
+        session.commit()
+        return True
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error updating admin: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+
+def delete_admin(unique_id):
+    """Deletes an admin by their ID"""
+    session = SessionLocal()
+    try:
+        admin_db = session.query(AdminDB).filter(AdminDB.id == unique_id).first()
+        if not admin_db:
+            logger.warning(f"Admin with ID {unique_id} not found")
+            return False
+
+        session.delete(admin_db)
+        session.commit()
+        return True
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error deleting admin: {str(e)}")
+        return False
+    finally:
+        session.close()
