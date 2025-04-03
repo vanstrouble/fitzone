@@ -2,6 +2,7 @@ from models import PersonDB, UserDB, TrainerDB, AdminDB
 from person import Person
 from user import User
 from trainer import Trainer
+from admin import Admin
 
 
 def person_to_db(person):
@@ -32,6 +33,16 @@ def trainer_to_db(trainer):
         specialty=trainer.specialty,
         start_time=trainer.start_time,
         end_time=trainer.end_time,
+    )
+
+
+def admin_to_db(admin):
+    """Converts an Admin object to an AdminDB object"""
+    return AdminDB(
+        username=admin.username,
+        password_hash=admin.password,
+        role=admin.role,
+        created_at=admin.created_at,
     )
 
 
@@ -68,4 +79,15 @@ def db_to_trainer(trainer_db):
         specialty=trainer_db.specialty,
         start_time=trainer_db.start_time,
         end_time=trainer_db.end_time,
+    )
+
+
+def db_to_admin(admin_db):
+    """Converts an AdminDB object to an Admin object"""
+    return Admin(
+        unique_id=admin_db.id,
+        username=admin_db.username,
+        password=admin_db.password_hash,
+        role=admin_db.role,
+        created_at=admin_db.created_at,
     )
