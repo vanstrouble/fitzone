@@ -2,8 +2,9 @@ from datetime import datetime
 
 
 class Person:
-    def __init__(self, name=None, age=None, email=None, phone=None, created_at=None):
+    def __init__(self, name=None, lastname=None, age=None, email=None, phone=None, created_at=None):
         self._name = name
+        self._lastname = lastname
         self._age = age
         self._email = email
         self._phone = phone
@@ -12,6 +13,7 @@ class Person:
     def __str__(self):
         return f'''
             Name: {self._name}
+            Lastname: {self._lastname}
             Age: {self._age}
             Email: {self._email}
             Phone: {self._phone}
@@ -25,6 +27,14 @@ class Person:
     @name.setter
     def name(self, name):
         self._name = name
+
+    @property
+    def lastname(self):
+        return self._lastname
+
+    @lastname.setter
+    def lastname(self, lastname):
+        self._lastname = lastname
 
     @property
     def age(self):
@@ -65,6 +75,7 @@ class Person:
     def to_dict(self):
         return {
             "name": self._name,
+            "lastname": self._lastname,
             "age": self._age,
             "email": self._email,
             "phone": self._phone,
@@ -73,6 +84,6 @@ class Person:
 
 
 if __name__ == "__main__":
-    person_test = Person("Antonio", 26, "email@email.com", "1234567890", "2021-09-01 14:00")
+    person_test = Person("Antonio", "Vázquez", 26, "email@email.com", "1234567890", "2021-09-01 14:00")
     print(person_test.__str__())
     print(person_test.to_dict())
