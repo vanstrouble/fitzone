@@ -84,6 +84,8 @@ class Person:
 
 
 if __name__ == "__main__":
-    person_test = Person("Antonio", "Vázquez", 26, "email@email.com", "1234567890", "2021-09-01 14:00")
+    person_test = Person(
+        "Antonio", "Vázquez", 26, "email@email.com", "1234567890", "2021-09-01 14:00"
+    )
     print(person_test.__str__())
     print(person_test.to_dict())
