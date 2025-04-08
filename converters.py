@@ -1,48 +1,71 @@
-from models import PersonDB, UserDB, TrainerDB, AdminDB
+from models import UserDB, TrainerDB, AdminDB
 from person import Person
 from user import User
 from trainer import Trainer
 from admin import Admin
-
-
-def person_to_db(person):
-    """Converts a Person object to a PersonDB object"""
-    return PersonDB(
-        name=person.name, age=person.age, email=person.email, phone=person.phone
-    )
+from datetime import datetime
 
 
 def user_to_db(user):
     """Converts a User object to a UserDB object"""
+    # Convertir strings a objetos datetime
+    created_at = (
+        datetime.strptime(user.created_at, "%Y-%m-%d %H:00")
+        if user.created_at
+        else None
+    )
+    renovation_date = (
+        datetime.strptime(user.renovation_date, "%Y-%m-%d %H:00")
+        if user.renovation_date
+        else None
+    )
+
     return UserDB(
         name=user.name,
+        lastname=user.lastname,
         age=user.age,
         email=user.email,
         phone=user.phone,
         membership_type=user.membership_type,
+        renovation_date=renovation_date,  # Ahora es un objeto datetime
+        created_at=created_at,  # Ahora es un objeto datetime
     )
 
 
 def trainer_to_db(trainer):
     """Converts a Trainer object to a TrainerDB object"""
+    created_at = (
+        datetime.strptime(trainer.created_at, "%Y-%m-%d %H:00")
+        if trainer.created_at
+        else None
+    )
+
     return TrainerDB(
         name=trainer.name,
+        lastname=trainer.lastname,
         age=trainer.age,
         email=trainer.email,
         phone=trainer.phone,
         specialty=trainer.specialty,
         start_time=trainer.start_time,
         end_time=trainer.end_time,
+        created_at=created_at,
     )
 
 
 def admin_to_db(admin):
     """Converts an Admin object to an AdminDB object"""
+    created_at = (
+        datetime.strptime(admin.created_at, "%Y-%m-%d %H:00")
+        if admin.created_at
+        else None
+    )
+
     return AdminDB(
         username=admin.username,
         password_hash=admin.password,
         role=admin.role,
-        created_at=admin.created_at,
+        created_at=created_at,
     )
 
 
