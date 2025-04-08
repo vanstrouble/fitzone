@@ -6,6 +6,7 @@ class Trainer(User):
     def __init__(
         self,
         name=None,
+        lastname=None,
         age=None,
         email=None,
         phone=None,
@@ -14,7 +15,7 @@ class Trainer(User):
         end_time=None,
         created_at=None,
     ):
-        super().__init__(name, age, email, phone, created_at)
+        super().__init__(name, lastname, age, email, phone, created_at)
         self._unique_id = None
         self._specialty = specialty
         self._start_time = start_time
@@ -24,6 +25,7 @@ class Trainer(User):
         return f'''
             ID: {self.unique_id}
             Name: {self.name}
+            Lastname: {self.lastname}
             Age: {self.age}
             Email: {self.email}
             Phone: {self.phone}
@@ -64,6 +66,7 @@ class Trainer(User):
     def to_dict(self):
         return {
             "name": self.name,
+            "lastname": self.lastname,
             "age": self.age,
             "email": self.email,
             "phone": self.phone,
@@ -76,7 +79,7 @@ class Trainer(User):
 
 if __name__ == "__main__":
     trainer_test = Trainer(
-        "Antonio", 26, "email@email.com", "1234567890", "Crossfit", "08:00", "16:00"
+        "Antonio", "Vázquez", 26, "email@email.com", "1234567890", "Crossfit", "08:00", "16:00"
     )
     print(trainer_test.__str__())
     print(trainer_test.to_dict())
