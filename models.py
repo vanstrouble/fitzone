@@ -14,6 +14,8 @@ class UserDB(Base):
     email = Column(String)
     phone = Column(String)
     membership_type = Column(String)
+    renovation_date = Column(DateTime)
+    created_at = Column(DateTime)
 
 
 class TrainerDB(Base):
@@ -28,6 +30,7 @@ class TrainerDB(Base):
     specialty = Column(String)
     start_time = Column(String)
     end_time = Column(String)
+    created_at = Column(DateTime)
 
 
 class AdminDB(Base):
