@@ -2,6 +2,7 @@ from database import SessionLocal
 from models import UserDB, TrainerDB, AdminDB
 from converters import db_to_admin, db_to_user, db_to_trainer, user_to_db, trainer_to_db
 from sqlalchemy.exc import SQLAlchemyError
+from prettytable import PrettyTable
 import logging
 
 logging.basicConfig(
@@ -296,3 +297,77 @@ def delete_admin(unique_id):
         return False
     finally:
         session.close()
+
+
+def debug_print_users():
+    """Debug function to print users in a nice table format"""
+    session = SessionLocal()
+    try:
+        users_db = session.query(UserDB).all()
+        if not users_db:
+            logger.info("No users found in database")
+            return
+
+        # Create PrettyTable and set headers
+        table = PrettyTable()
+        table.field_names = [
+            "ID",
+            "Name",
+            "Lastname",
+            "Age",
+            "Email",
+            "Phone",
+            "Membership",
+            "Renovation",
+            "Created At"
+        ]
+
+        # Add rows to table
+        for user in users_db:
+            table.add_row([
+                user.id,
+                user.name,
+                user.lastname,
+                user.age,
+                user.email,
+                user.phone,
+                user.membership_type,
+                user.renovation_date,
+                user.created_at,
+            ])
+
+        # Set alignment and style
+        table.align = "l"  # Left align text
+        table.border = True
+        table.header = True
+
+        # Print table
+        print("\nUsers in database:")
+        print(table)
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting users: {str(e)}")
+    finally:
+        session.close()
+
+
+if __name__ == "__main__":
+    # Create a test user
+    # from user import User
+
+    # test_user = User(
+    #     name="Pedro",
+    #     lastname="Vásquez",
+    #     age=26,
+    #     email="pedro@email.com",
+    #     phone="1234567890",
+    #     membership_type="premium"
+    # )
+
+    # # Create user in database
+    # created_user = create_user(test_user)
+    # if created_user:
+    #     print(f"Created user:\n{created_user}")
+    # else:
+    #     print("Failed to create user")
+
+    debug_print_users()
