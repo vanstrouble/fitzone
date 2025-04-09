@@ -1,9 +1,17 @@
-from database import SessionLocal
-from models import UserDB, TrainerDB, AdminDB
-from converters import db_to_admin, db_to_user, db_to_trainer, user_to_db, trainer_to_db
+import logging
 from sqlalchemy.exc import SQLAlchemyError
 from prettytable import PrettyTable
-import logging
+from database import SessionLocal
+from models import UserDB, TrainerDB, AdminDB
+from converters import (
+    admin_to_db,
+    db_to_admin,
+    db_to_user,
+    db_to_trainer,
+    user_to_db,
+    trainer_to_db,
+)
+
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -206,12 +214,7 @@ def create_admin(admin):
     """Creates a new admin in the database"""
     session = SessionLocal()
     try:
-        admin_db = AdminDB(
-            username=admin.username,
-            password_hash=admin.password,
-            role=admin.rol,
-            created_at=admin.created_at,
-        )
+        admin_db = admin_to_db(admin)
         session.add(admin_db)
         session.commit()
         admin.unique_id = admin_db.id
@@ -350,24 +353,46 @@ def debug_print_users():
         session.close()
 
 
+def debug_print_admins():
+    """Debug function to print admins in a nice table format"""
+    session = SessionLocal()
+    try:
+        admins_db = session.query(AdminDB).all()
+        if not admins_db:
+            logger.info("No admins found in database")
+            return
+
+        # Create PrettyTable and set headers
+        table = PrettyTable()
+        table.field_names = [
+            "ID",
+            "Username",
+            "Role",
+            "Created At"
+        ]
+
+        # Add rows to table
+        for admin in admins_db:
+            table.add_row([
+                admin.id,
+                admin.username,
+                admin.role,
+                admin.created_at,
+            ])
+
+        # Set alignment and style
+        table.align = "l"  # Left align text
+        table.border = True
+        table.header = True
+
+        # Print table
+        print("\nAdmins in database:")
+        print(table)
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting admins: {str(e)}")
+    finally:
+        session.close()
+
+
 if __name__ == "__main__":
-    # Create a test user
-    # from user import User
-
-    # test_user = User(
-    #     name="Pedro",
-    #     lastname="Vásquez",
-    #     age=26,
-    #     email="pedro@email.com",
-    #     phone="1234567890",
-    #     membership_type="premium"
-    # )
-
-    # # Create user in database
-    # created_user = create_user(test_user)
-    # if created_user:
-    #     print(f"Created user:\n{created_user}")
-    # else:
-    #     print("Failed to create user")
-
-    debug_print_users()
+    pass

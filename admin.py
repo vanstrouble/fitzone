@@ -2,18 +2,18 @@ from datetime import datetime
 
 
 class Admin:
-    def __init__(self, username=None, password=None, rol=None, created_at=None):
+    def __init__(self, username=None, password=None, role=None, created_at=None):
         self._unique_id = None
         self._username = username
         self._password = password
-        self._rol = rol
+        self._role = role
         self._created_at = created_at or datetime.now().strftime("%Y-%m-%d %H:00")
 
     def __str__(self):
         return f'''
             ID: {self._unique_id}
             Username: {self._username}
-            rol: {self._rol}
+            role: {self._role}
             Created At: {self._created_at}
         '''
 
@@ -43,12 +43,12 @@ class Admin:
         self._password = password
 
     @property
-    def rol(self):
-        return self._rol
+    def role(self):
+        return self._role
 
-    @rol.setter
-    def rol(self, rol):
-        self._rol = rol
+    @role.setter
+    def role(self, role):
+        self._role = role
 
     @property
     def created_at(self):
