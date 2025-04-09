@@ -210,10 +210,35 @@ def delete_trainer(unique_id):
         session.close()
 
 
+def _check_admin_username_exists(session, username):
+    """Helper function to check if username exists (internal use)"""
+    existing_admin = session.query(AdminDB).filter(
+        AdminDB.username == username
+    ).first()
+    return existing_admin is not None
+
+
+def is_admin_username_available(username):
+    """Public API to check if username is available"""
+    session = SessionLocal()
+    try:
+        return not _check_admin_username_exists(session, username)
+    except SQLAlchemyError as e:
+        logger.error(f"Error checking username: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+
 def create_admin(admin):
     """Creates a new admin in the database"""
     session = SessionLocal()
     try:
+        # Reuse the helper function
+        if _check_admin_username_exists(session, admin.username):
+            logger.warning(f"Admin with username '{admin.username}' already exists")
+            return None
+
         admin_db = admin_to_db(admin)
         session.add(admin_db)
         session.commit()
@@ -227,11 +252,11 @@ def create_admin(admin):
         session.close()
 
 
-def get_admin(unique_id):
-    """Gets an admin by their ID"""
+def get_admin(username):
+    """Gets an admin by their username"""
     session = SessionLocal()
     try:
-        admin_db = session.query(AdminDB).filter(AdminDB.id == unique_id).first()
+        admin_db = session.query(AdminDB).filter(AdminDB.username == username).first()
         if admin_db:
             return db_to_admin(admin_db)
         return None

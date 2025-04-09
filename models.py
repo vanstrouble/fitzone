@@ -37,7 +37,7 @@ class AdminDB(Base):
     __tablename__ = "admins"
 
     id = Column(Integer, primary_key=True)
-    username = Column(String)
-    password_hash = Column(String)
+    username = Column(String, unique=True, nullable=False)
+    password_hash = Column(String(128))
     role = Column(String)
     created_at = Column(DateTime)

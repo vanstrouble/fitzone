@@ -27,8 +27,8 @@ def user_to_db(user):
         email=user.email,
         phone=user.phone,
         membership_type=user.membership_type,
-        renovation_date=renovation_date,  # Ahora es un objeto datetime
-        created_at=created_at,  # Ahora es un objeto datetime
+        renovation_date=renovation_date,
+        created_at=created_at,
     )
 
 
@@ -57,8 +57,8 @@ def admin_to_db(admin):
     """Converts an Admin object to an AdminDB object"""
     created_at = (
         datetime.strptime(admin.created_at, "%Y-%m-%d %H:00")
-        if admin.created_at
-        else None
+        if isinstance(admin.created_at, str)
+        else admin.created_at
     )
 
     return AdminDB(
