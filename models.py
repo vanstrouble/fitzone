@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -31,6 +32,8 @@ class TrainerDB(Base):
     start_time = Column(String)
     end_time = Column(String)
     created_at = Column(DateTime)
+    admin_username = Column(String, ForeignKey('admins.username'), nullable=True)
+    admin = relationship("AdminDB", back_populates="trainer")
 
 
 class AdminDB(Base):
@@ -41,3 +44,4 @@ class AdminDB(Base):
     password_hash = Column(String(128))
     role = Column(String)
     created_at = Column(DateTime)
+    trainer = relationship("TrainerDB", back_populates="admin", uselist=False)
