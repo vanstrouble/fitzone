@@ -2,7 +2,8 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from prettytable import PrettyTable
 from database import SessionLocal
-from models import UserDB, TrainerDB, AdminDB
+from models import DEFAULT_ADMIN, UserDB, TrainerDB, AdminDB, AdminRoles
+from admin import Admin
 from converters import (
     admin_to_db,
     db_to_admin,
@@ -64,10 +65,16 @@ def get_all_users():
         session.close()
 
 
-def update_user(user):
+def update_user(user, requester_admin):
     """Updates an existing user"""
-    if not user.unique_id:
-        logger.error("Cannot update a user without an ID")
+    if not requester_admin or not has_admin_permission(requester_admin, AdminRoles.MANAGER):
+        logger.warning(
+            f"Unauthorized update attempt by "
+            f"{getattr(requester_admin, 'username', 'Unknown')}"
+        )
+        return False
+    if not getattr(user, 'unique_id', None):
+        logger.error("Cannot update a user without a valid ID")
         return False
 
     session = SessionLocal()
@@ -307,13 +314,23 @@ def update_admin(admin):
         session.close()
 
 
-def delete_admin(unique_id):
-    """Deletes an admin by their ID"""
+def delete_admin(requester_admin, admin_id_to_delete):
+    """
+    Elimina un admin por su ID.
+    Solo admins pueden eliminar admins.
+    """
+    if not has_admin_permission(requester_admin, AdminRoles.ADMIN):
+        logger.warning(f"Unauthorized delete attempt by {requester_admin.username}")
+        return False
+
     session = SessionLocal()
     try:
-        admin_db = session.query(AdminDB).filter(AdminDB.id == unique_id).first()
+        admin_db = session.query(AdminDB).filter(AdminDB.id == admin_id_to_delete).first()
         if not admin_db:
-            logger.warning(f"Admin with ID {unique_id} not found")
+            return False
+
+        if is_last_admin(session):
+            logger.warning("Cannot delete the last admin")
             return False
 
         session.delete(admin_db)
@@ -419,5 +436,81 @@ def debug_print_admins():
         session.close()
 
 
+def has_admin_permission(admin, required_role=AdminRoles.MANAGER):
+    if not admin:
+        return False
+    if admin.role == AdminRoles.ADMIN:
+        return True
+    if admin.role == AdminRoles.MANAGER and required_role == AdminRoles.MANAGER:
+        return True
+    return False
+
+
+def is_last_admin(session):
+    """Checks if there is only one admin in the database"""
+    admin_count = session.query(AdminDB).count()
+    return admin_count == 1
+
+
+def ensure_default_admin_exists():
+    """Ensures that there is at least one admin in the system"""
+    session = SessionLocal()
+    try:
+        admin_count = session.query(AdminDB).count()
+        if admin_count == 0:
+
+            default_admin = Admin(
+                username=DEFAULT_ADMIN["username"],
+                password=DEFAULT_ADMIN["password"],
+                role=DEFAULT_ADMIN["role"]
+            )
+
+            create_admin(default_admin)
+            logger.info("Created default admin account")
+
+    except SQLAlchemyError as e:
+        logger.error(f"Error ensuring default admin: {str(e)}")
+    finally:
+        session.close()
+
+
+def link_trainer_to_admin(trainer_id, admin_username):
+    """Links a trainer to an admin account (manager role)"""
+    session = SessionLocal()
+    try:
+        trainer_db = session.query(TrainerDB).filter(TrainerDB.id == trainer_id).first()
+        admin_db = session.query(AdminDB).filter(AdminDB.username == admin_username).first()
+
+        if not trainer_db or not admin_db:
+            return False
+
+        if admin_db.role != AdminRoles.MANAGER:
+            admin_db.role = AdminRoles.MANAGER
+
+        trainer_db.admin_username = admin_username
+
+        session.commit()
+        return True
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error linking trainer to admin: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+
+def authenticate_admin(username, password):
+    """Authenticates an admin by username and password"""
+    admin = get_admin(username)
+    if not admin:
+        return None
+
+    if admin.verify_password(password):
+        return admin
+
+    return None
+
+
 if __name__ == "__main__":
-    pass
+    ensure_default_admin_exists()
+    debug_print_admins()
