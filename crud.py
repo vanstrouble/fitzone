@@ -19,6 +19,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ----- Funciones auxiliares compartidas -----
+
+
+def _check_admin_username_exists(session, username):
+    """Helper function to check if username exists (internal use)"""
+    existing_admin = session.query(AdminDB).filter(AdminDB.username == username).first()
+    return existing_admin is not None
+
+
+def has_admin_permission(admin, required_role=AdminRoles.MANAGER):
+    """Check if an admin has permissions for a required role"""
+    if not admin:
+        return False
+    if admin.role == AdminRoles.ADMIN:
+        return True
+    if admin.role == AdminRoles.MANAGER and required_role == AdminRoles.MANAGER:
+        return True
+    return False
+
+
+# ----- Funciones de Usuario (User) -----
+
 
 def create_user(user):
     """Creates a new user in the database"""
@@ -67,13 +89,15 @@ def get_all_users():
 
 def update_user(user, requester_admin):
     """Updates an existing user"""
-    if not requester_admin or not has_admin_permission(requester_admin, AdminRoles.MANAGER):
+    if not requester_admin or not has_admin_permission(
+        requester_admin, AdminRoles.MANAGER
+    ):
         logger.warning(
             f"Unauthorized update attempt by "
             f"{getattr(requester_admin, 'username', 'Unknown')}"
         )
         return False
-    if not getattr(user, 'unique_id', None):
+    if not getattr(user, "unique_id", None):
         logger.error("Cannot update a user without a valid ID")
         return False
 
@@ -118,6 +142,62 @@ def delete_user(unique_id):
         return False
     finally:
         session.close()
+
+
+def debug_print_users():
+    """Debug function to print users in a nice table format"""
+    session = SessionLocal()
+    try:
+        users_db = session.query(UserDB).all()
+        if not users_db:
+            logger.info("No users found in database")
+            return
+
+        # Create PrettyTable and set headers
+        table = PrettyTable()
+        table.field_names = [
+            "ID",
+            "Name",
+            "Lastname",
+            "Age",
+            "Email",
+            "Phone",
+            "Membership",
+            "Renovation",
+            "Created At",
+        ]
+
+        # Add rows to table
+        for user in users_db:
+            table.add_row(
+                [
+                    user.id,
+                    user.name,
+                    user.lastname,
+                    user.age,
+                    user.email,
+                    user.phone,
+                    user.membership_type,
+                    user.renovation_date,
+                    user.created_at,
+                ]
+            )
+
+        # Set alignment and style
+        table.align = "l"  # Left align text
+        table.border = True
+        table.header = True
+
+        # Print table
+        print("\nUsers in database:")
+        print(table)
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting users: {str(e)}")
+    finally:
+        session.close()
+
+
+# ----- Funciones de Entrenador (Trainer) -----
 
 
 def create_trainer(trainer):
@@ -174,7 +254,9 @@ def update_trainer(trainer):
 
     session = SessionLocal()
     try:
-        trainer_db = session.query(TrainerDB).filter(TrainerDB.id == trainer.unique_id).first()
+        trainer_db = (
+            session.query(TrainerDB).filter(TrainerDB.id == trainer.unique_id).first()
+        )
         if not trainer_db:
             logger.warning(f"Trainer with ID {trainer.unique_id} not found")
             return False
@@ -217,24 +299,34 @@ def delete_trainer(unique_id):
         session.close()
 
 
-def _check_admin_username_exists(session, username):
-    """Helper function to check if username exists (internal use)"""
-    existing_admin = session.query(AdminDB).filter(
-        AdminDB.username == username
-    ).first()
-    return existing_admin is not None
-
-
-def is_admin_username_available(username):
-    """Public API to check if username is available"""
+def link_trainer_to_admin(trainer_id, admin_username):
+    """Links a trainer to an admin account (manager role)"""
     session = SessionLocal()
     try:
-        return not _check_admin_username_exists(session, username)
+        trainer_db = session.query(TrainerDB).filter(TrainerDB.id == trainer_id).first()
+        admin_db = (
+            session.query(AdminDB).filter(AdminDB.username == admin_username).first()
+        )
+
+        if not trainer_db or not admin_db:
+            return False
+
+        if admin_db.role != AdminRoles.MANAGER:
+            admin_db.role = AdminRoles.MANAGER
+
+        trainer_db.admin_username = admin_username
+
+        session.commit()
+        return True
     except SQLAlchemyError as e:
-        logger.error(f"Error checking username: {str(e)}")
+        session.rollback()
+        logger.error(f"Error linking trainer to admin: {str(e)}")
         return False
     finally:
         session.close()
+
+
+# ----- Funciones de Administrador (Admin) -----
 
 
 def create_admin(admin):
@@ -325,7 +417,9 @@ def delete_admin(requester_admin, admin_id_to_delete):
 
     session = SessionLocal()
     try:
-        admin_db = session.query(AdminDB).filter(AdminDB.id == admin_id_to_delete).first()
+        admin_db = (
+            session.query(AdminDB).filter(AdminDB.id == admin_id_to_delete).first()
+        )
         if not admin_db:
             return False
 
@@ -344,57 +438,6 @@ def delete_admin(requester_admin, admin_id_to_delete):
         session.close()
 
 
-def debug_print_users():
-    """Debug function to print users in a nice table format"""
-    session = SessionLocal()
-    try:
-        users_db = session.query(UserDB).all()
-        if not users_db:
-            logger.info("No users found in database")
-            return
-
-        # Create PrettyTable and set headers
-        table = PrettyTable()
-        table.field_names = [
-            "ID",
-            "Name",
-            "Lastname",
-            "Age",
-            "Email",
-            "Phone",
-            "Membership",
-            "Renovation",
-            "Created At"
-        ]
-
-        # Add rows to table
-        for user in users_db:
-            table.add_row([
-                user.id,
-                user.name,
-                user.lastname,
-                user.age,
-                user.email,
-                user.phone,
-                user.membership_type,
-                user.renovation_date,
-                user.created_at,
-            ])
-
-        # Set alignment and style
-        table.align = "l"  # Left align text
-        table.border = True
-        table.header = True
-
-        # Print table
-        print("\nUsers in database:")
-        print(table)
-    except SQLAlchemyError as e:
-        logger.error(f"Error getting users: {str(e)}")
-    finally:
-        session.close()
-
-
 def debug_print_admins():
     """Debug function to print admins in a nice table format"""
     session = SessionLocal()
@@ -406,21 +449,18 @@ def debug_print_admins():
 
         # Create PrettyTable and set headers
         table = PrettyTable()
-        table.field_names = [
-            "ID",
-            "Username",
-            "Role",
-            "Created At"
-        ]
+        table.field_names = ["ID", "Username", "Role", "Created At"]
 
         # Add rows to table
         for admin in admins_db:
-            table.add_row([
-                admin.id,
-                admin.username,
-                admin.role,
-                admin.created_at,
-            ])
+            table.add_row(
+                [
+                    admin.id,
+                    admin.username,
+                    admin.role,
+                    admin.created_at,
+                ]
+            )
 
         # Set alignment and style
         table.align = "l"  # Left align text
@@ -436,14 +476,16 @@ def debug_print_admins():
         session.close()
 
 
-def has_admin_permission(admin, required_role=AdminRoles.MANAGER):
-    if not admin:
+def is_admin_username_available(username):
+    """Public API to check if username is available"""
+    session = SessionLocal()
+    try:
+        return not _check_admin_username_exists(session, username)
+    except SQLAlchemyError as e:
+        logger.error(f"Error checking username: {str(e)}")
         return False
-    if admin.role == AdminRoles.ADMIN:
-        return True
-    if admin.role == AdminRoles.MANAGER and required_role == AdminRoles.MANAGER:
-        return True
-    return False
+    finally:
+        session.close()
 
 
 def is_last_admin(session):
@@ -462,7 +504,7 @@ def ensure_default_admin_exists():
             default_admin = Admin(
                 username=DEFAULT_ADMIN["username"],
                 password=DEFAULT_ADMIN["password"],
-                role=DEFAULT_ADMIN["role"]
+                role=DEFAULT_ADMIN["role"],
             )
 
             create_admin(default_admin)
@@ -470,31 +512,6 @@ def ensure_default_admin_exists():
 
     except SQLAlchemyError as e:
         logger.error(f"Error ensuring default admin: {str(e)}")
-    finally:
-        session.close()
-
-
-def link_trainer_to_admin(trainer_id, admin_username):
-    """Links a trainer to an admin account (manager role)"""
-    session = SessionLocal()
-    try:
-        trainer_db = session.query(TrainerDB).filter(TrainerDB.id == trainer_id).first()
-        admin_db = session.query(AdminDB).filter(AdminDB.username == admin_username).first()
-
-        if not trainer_db or not admin_db:
-            return False
-
-        if admin_db.role != AdminRoles.MANAGER:
-            admin_db.role = AdminRoles.MANAGER
-
-        trainer_db.admin_username = admin_username
-
-        session.commit()
-        return True
-    except SQLAlchemyError as e:
-        session.rollback()
-        logger.error(f"Error linking trainer to admin: {str(e)}")
-        return False
     finally:
         session.close()
 
