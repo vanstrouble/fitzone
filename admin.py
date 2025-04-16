@@ -1,8 +1,4 @@
 from datetime import datetime
-from passlib.context import CryptContext
-
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class Admin:
@@ -10,7 +6,6 @@ class Admin:
         self._unique_id = None
         self._username = username
         self._password = password
-        self.set_password(password)
         self._role = role
         self._created_at = created_at or datetime.now().strftime("%Y-%m-%d %H:00")
 
@@ -40,15 +35,12 @@ class Admin:
         self._username = username
 
     def set_password(self, password):
-        """Encrypts and stores the password"""
-        if password:
-            self._password = pwd_context.hash(password)
+        """Stores the password directly (temporarily without hashing)"""
+        self._password = password  # Sin hashear
 
-    def verify_password(self, plain_password):
-        """Verifies if the provided password matches the hash"""
-        if not plain_password or not self._password:
-            return False
-        return pwd_context.verify(plain_password, self._password)
+    def verify_password(self, password):
+        """Simple direct comparison (temporary)"""
+        return password == self._password
 
     @property
     def password(self):
@@ -56,7 +48,7 @@ class Admin:
 
     @password.setter
     def password(self, password):
-        self._password = password
+        self.set_password(password)
 
     @property
     def role(self):
