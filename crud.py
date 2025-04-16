@@ -519,15 +519,48 @@ def ensure_default_admin_exists():
 def authenticate_admin(username, password):
     """Authenticates an admin by username and password"""
     admin = get_admin(username)
-    if not admin:
-        return None
-
-    if admin.verify_password(password):
+    if admin and admin.verify_password(password):
         return admin
-
     return None
 
 
 if __name__ == "__main__":
-    ensure_default_admin_exists()
+    # 1. Create a test admin
+    test_admin = Admin(
+        username="test_admin",
+        password="test123",
+        role=AdminRoles.ADMIN
+    )
+
+    print("\n=== Test for admin creation and authentication ===")
+    print(f"Creating admin with username: {test_admin.username}")
+
+    # 2. Store it in the database
+    created_admin = create_admin(test_admin)
+    if created_admin:
+        print("✅ Admin successfully created")
+    else:
+        print("❌ Error creating admin")
+        exit(1)
+
+    # 3. Attempt to retrieve the admin
+    retrieved_admin = get_admin("test_admin")
+    if retrieved_admin:
+        print("✅ Admin successfully retrieved")
+    else:
+        print("❌ Error retrieving admin")
+        exit(1)
+
+    # 4. Test authentication with correct password
+    print("\nTesting authentication with correct credentials:")
+    auth_result = authenticate_admin("test_admin", "test123")
+    print(f"Result: {'✅ Successful' if auth_result else '❌ Failed'}")
+
+    # 5. Test authentication with incorrect password
+    print("\nTesting authentication with incorrect credentials:")
+    wrong_auth = authenticate_admin("test_admin", "wrong_password")
+    print(f"Result: {'❌ Correct' if not wrong_auth else '⚠️ Incorrect'}")
+
+    # 6. Display all admins in the database
+    print("\nFinal state of the database:")
     debug_print_admins()
