@@ -326,6 +326,63 @@ def link_trainer_to_admin(trainer_id, admin_username):
         session.close()
 
 
+def debug_print_trainers():
+    """Debug function to print trainers in a nice table format"""
+    session = SessionLocal()
+    try:
+        trainers_db = session.query(TrainerDB).all()
+        if not trainers_db:
+            logger.info("No trainers found in database")
+            return
+
+        # Create PrettyTable and set headers
+        table = PrettyTable()
+        table.field_names = [
+            "ID",
+            "Name",
+            "Lastname",
+            "Age",
+            "Email",
+            "Phone",
+            "Specialty",
+            "Start Time",
+            "End Time",
+            "Created At",
+            "Admin Username"
+        ]
+
+        # Add rows to table
+        for trainer in trainers_db:
+            table.add_row(
+                [
+                    trainer.id,
+                    trainer.name,
+                    trainer.lastname,
+                    trainer.age,
+                    trainer.email,
+                    trainer.phone,
+                    trainer.specialty,
+                    trainer.start_time,
+                    trainer.end_time,
+                    trainer.created_at,
+                    trainer.admin_username
+                ]
+            )
+
+        # Set alignment and style
+        table.align = "l"  # Left align text
+        table.border = True
+        table.header = True
+
+        # Print table
+        print("\nTrainers in database:")
+        print(table)
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting trainers: {str(e)}")
+    finally:
+        session.close()
+
+
 # ----- Funciones de Administrador (Admin) -----
 
 
