@@ -63,7 +63,7 @@ def admin_to_db(admin):
 
     return AdminDB(
         username=admin.username,
-        password_hash=admin.password,
+        password_hash=admin._password,
         role=admin.role,
         created_at=created_at,
     )
@@ -106,12 +106,12 @@ def db_to_trainer(trainer_db):
 
 
 def db_to_admin(admin_db):
-    """Converts an AdminDB object to an Admin object"""
+    """Converts an AdminDB object to an Admin"""
     admin = Admin(
         username=admin_db.username,
-        password=admin_db.password_hash,
         role=admin_db.role,
         created_at=admin_db.created_at,
     )
-    admin.unique_id = admin_db.id  # Establecemos el ID después de crear el objeto
+    admin.unique_id = admin_db.id
+    admin._password = admin_db.password_hash
     return admin
