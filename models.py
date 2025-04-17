@@ -53,8 +53,8 @@ class AdminDB(Base):
 
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
-    password_hash = Column(String(128))
-    role = Column(String)
+    password_hash = Column(String(128), nullable=False)
+    role = Column(String, nullable=False)
     created_at = Column(DateTime)
     trainer = relationship("TrainerDB", back_populates="admin", uselist=False)
 
