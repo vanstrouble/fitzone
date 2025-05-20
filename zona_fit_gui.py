@@ -77,7 +77,6 @@ class LoginFrame(ctk.CTkFrame):
         password = self.password_entry.get()
         admin = authenticate_admin(username, password)
         if admin:
-            # Reset error state
             self.error_label.configure(text="")
             self.username_entry.configure(border_color="gray")
             self.password_entry.configure(border_color="gray")
@@ -88,22 +87,77 @@ class LoginFrame(ctk.CTkFrame):
             self.password_entry.configure(border_color="red")
 
 
-class HelloWorldFrame(ctk.CTkFrame):
-    def __init__(self, master):
+class DashboardFrame(ctk.CTkFrame):
+    def __init__(self, master, on_logout_callback):
         super().__init__(master)
-        label = ctk.CTkLabel(
-            self,
-            text="Hello World!",
-            font=ctk.CTkFont(size=36, weight="bold"),
-            text_color="#1f538d",
+        self.on_logout_callback = on_logout_callback
+
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        # Sidebar Frame
+        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
+        self.sidebar_frame.grid(row=0, column=0, sticky="nsw")
+        self.sidebar_frame.grid_rowconfigure(
+            4, weight=1
+        )  # Push sign out button to bottom
+
+        sidebar_title = ctk.CTkLabel(
+            self.sidebar_frame, text="Menu", font=ctk.CTkFont(size=20, weight="bold")
         )
-        label.pack(expand=True)
+        sidebar_title.grid(row=0, column=0, padx=20, pady=(20, 10))
+
+        admins_button = ctk.CTkButton(
+            self.sidebar_frame,
+            text="Admins",
+            command=lambda: self.show_content("Admins"),
+        )
+        admins_button.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+
+        trainers_button = ctk.CTkButton(
+            self.sidebar_frame,
+            text="Trainers",
+            command=lambda: self.show_content("Trainers"),
+        )
+        trainers_button.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+
+        users_button = ctk.CTkButton(
+            self.sidebar_frame, text="Users", command=lambda: self.show_content("Users")
+        )
+        users_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+
+        sign_out_button = ctk.CTkButton(
+            self.sidebar_frame,
+            text="Sign Out",
+            command=self.on_logout_callback,
+            fg_color="red",
+            hover_color="#c00000",
+        )
+        sign_out_button.grid(row=5, column=0, padx=20, pady=(10, 20), sticky="ews")
+
+        # Content Frame
+        self.content_frame = ctk.CTkFrame(self, corner_radius=10)
+        self.content_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        self.content_frame.grid_rowconfigure(0, weight=1)
+
+        self.content_label = ctk.CTkLabel(
+            self.content_frame, text="", font=ctk.CTkFont(size=24, weight="bold")
+        )
+        self.content_label.grid(row=0, column=0, padx=20, pady=20)
+
+        # Show default content
+        self.show_content("Admins")
+
+    def show_content(self, section_name):
+        self.content_label.configure(text=f"{section_name} Content")
 
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         ensure_default_admin_exists()
+        self.current_admin = None
         self.window_config()
         self.show_login()
 
@@ -147,18 +201,27 @@ class App(ctk.CTk):
         self.main_frame.grid_columnconfigure(0, weight=1)
         self.main_frame.grid_rowconfigure(0, weight=1)
 
-    def show_login(self):
+    def clear_main_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
+
+    def show_login(self):
+        self.clear_main_frame()
+        self.current_admin = None  # Clear current admin on logout
         login_frame = LoginFrame(self.main_frame, self.on_login_success)
-        login_frame.pack(expand=True)
+        login_frame.pack(expand=True, fill="both")
 
     def on_login_success(self, admin):
-        # Show the HelloWorldFrame when login is successful
-        for widget in self.main_frame.winfo_children():
-            widget.destroy()
-        hello_frame = HelloWorldFrame(self.main_frame)
-        hello_frame.pack(expand=True, fill="both")
+        self.current_admin = admin
+        self.show_dashboard()
+
+    def show_dashboard(self):
+        self.clear_main_frame()
+        dashboard_frame = DashboardFrame(self.main_frame, self.logout)
+        dashboard_frame.pack(expand=True, fill="both")
+
+    def logout(self):
+        self.show_login()
 
 
 if __name__ == "__main__":
