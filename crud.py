@@ -311,7 +311,7 @@ def link_trainer_to_admin(trainer_id, admin_username):
         if not trainer_db or not admin_db:
             return False
 
-        if admin_db.role != AdminRoles.MANAGER:
+        if getattr(admin_db, "role", None) != AdminRoles.MANAGER:
             admin_db.role = AdminRoles.MANAGER
 
         trainer_db.admin_username = admin_username
@@ -579,6 +579,26 @@ def authenticate_admin(username, password):
     if admin and admin.verify_password(password):
         return admin
     return None
+
+
+def is_admin(username):
+    """Checks if a given username belongs to an admin account
+
+    Args:
+        username (str): The username to check
+
+    Returns:
+        bool: True if the username belongs to an admin account, False otherwise
+    """
+    session = SessionLocal()
+    try:
+        admin_db = session.query(AdminDB).filter(AdminDB.username == username).first()
+        return admin_db is not None
+    except SQLAlchemyError as e:
+        logger.error(f"Error checking admin status: {str(e)}")
+        return False
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

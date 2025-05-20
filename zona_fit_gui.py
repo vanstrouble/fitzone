@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from crud import ensure_default_admin_exists, authenticate_admin
+from crud import ensure_default_admin_exists, authenticate_admin, is_admin
 
 
 class LoginFrame(ctk.CTkFrame):
@@ -88,9 +88,12 @@ class LoginFrame(ctk.CTkFrame):
 
 
 class DashboardFrame(ctk.CTkFrame):
-    def __init__(self, master, on_logout_callback):
+    def __init__(
+        self, master, on_logout_callback, current_admin
+    ):  # Added current_admin
         super().__init__(master)
         self.on_logout_callback = on_logout_callback
+        self.current_admin = current_admin  # Store the logged-in admin
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -107,24 +110,35 @@ class DashboardFrame(ctk.CTkFrame):
         )
         sidebar_title.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        admins_button = ctk.CTkButton(
-            self.sidebar_frame,
-            text="Admins",
-            command=lambda: self.show_content("Admins"),
-        )
-        admins_button.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
+        next_button_row = 1
+
+        # Conditionally show Admins button using is_admin check
+        if self.current_admin and is_admin(self.current_admin.username):
+            admins_button = ctk.CTkButton(
+                self.sidebar_frame,
+                text="Admins",
+                command=lambda: self.show_content("Admins"),
+            )
+            admins_button.grid(
+                row=next_button_row, column=0, padx=20, pady=10, sticky="ew"
+            )
+            next_button_row += 1
 
         trainers_button = ctk.CTkButton(
             self.sidebar_frame,
             text="Trainers",
             command=lambda: self.show_content("Trainers"),
         )
-        trainers_button.grid(row=2, column=0, padx=20, pady=10, sticky="ew")
+        trainers_button.grid(
+            row=next_button_row, column=0, padx=20, pady=10, sticky="ew"
+        )
+        next_button_row += 1
 
         users_button = ctk.CTkButton(
             self.sidebar_frame, text="Users", command=lambda: self.show_content("Users")
         )
-        users_button.grid(row=3, column=0, padx=20, pady=10, sticky="ew")
+        users_button.grid(row=next_button_row, column=0, padx=20, pady=10, sticky="ew")
+        # next_button_row += 1 # Not needed before sign_out_button at fixed row 5
 
         sign_out_button = ctk.CTkButton(
             self.sidebar_frame,
@@ -147,7 +161,11 @@ class DashboardFrame(ctk.CTkFrame):
         self.content_label.grid(row=0, column=0, padx=20, pady=20)
 
         # Show default content
-        self.show_content("Admins")
+        if self.current_admin and is_admin(self.current_admin.username):
+            self.show_content("Admins")
+        else:
+            # If Admins section is not available, default to Trainers or another appropriate section
+            self.show_content("Trainers")
 
     def show_content(self, section_name):
         self.content_label.configure(text=f"{section_name} Content")
@@ -217,7 +235,10 @@ class App(ctk.CTk):
 
     def show_dashboard(self):
         self.clear_main_frame()
-        dashboard_frame = DashboardFrame(self.main_frame, self.logout)
+        # Pass the current_admin to DashboardFrame
+        dashboard_frame = DashboardFrame(
+            self.main_frame, self.logout, self.current_admin
+        )
         dashboard_frame.pack(expand=True, fill="both")
 
     def logout(self):
