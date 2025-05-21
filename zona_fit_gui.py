@@ -334,8 +334,18 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("light")
         ctk.set_default_color_theme("blue")
         self.title("FitZone - Management System")
-        self.geometry("1200x720")
+
+        # Set initial window size
+        window_width = 1200
+        window_height = 720
+        self.geometry(f"{window_width}x{window_height}")
+
+        # Set minimum window size to match the initial size
+        self.minsize(window_width, window_height)
+
+        # Allow resizing (maximize)
         self.resizable(True, True)
+
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
