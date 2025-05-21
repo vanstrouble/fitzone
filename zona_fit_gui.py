@@ -21,7 +21,7 @@ class LoginFrame(ctk.CTkFrame):
         # App icon/logo
         app_logo = ctk.CTkLabel(
             self,
-            text="💪",
+            text="🦾",
             font=ctk.CTkFont(size=48),
         )
         app_logo.pack(pady=(30, 10))
@@ -51,6 +51,10 @@ class LoginFrame(ctk.CTkFrame):
         )
         self.username_entry.pack(pady=(0, 15), padx=40)
 
+        # Bind key events for username field
+        self.username_entry.bind("<Command-BackSpace>", self.clear_username)
+        self.username_entry.bind("<Return>", self.on_return_key)
+
         self.password_entry = ctk.CTkEntry(
             self,
             width=300,
@@ -61,6 +65,10 @@ class LoginFrame(ctk.CTkFrame):
             corner_radius=8,
         )
         self.password_entry.pack(pady=(0, 25))
+
+        # Bind key events for password field
+        self.password_entry.bind("<Command-BackSpace>", self.clear_password)
+        self.password_entry.bind("<Return>", self.on_return_key)
 
         self.error_label = ctk.CTkLabel(
             self,
@@ -82,6 +90,29 @@ class LoginFrame(ctk.CTkFrame):
             command=self.validate_login,
         )
         login_button.pack(pady=(0, 30))
+
+    def clear_username(self, event=None):
+        """Clear the username entry field"""
+        self.username_entry.delete(0, 'end')
+        return "break"  # Prevent default behavior
+
+    def clear_password(self, event=None):
+        """Clear the password entry field"""
+        self.password_entry.delete(0, 'end')
+        return "break"  # Prevent default behavior
+
+    def on_return_key(self, event=None):
+        """Handle Return/Enter key press in either field"""
+        # Check if both fields have content
+        if self.username_entry.get() and self.password_entry.get():
+            self.validate_login()
+        elif not self.username_entry.get():
+            # If username is empty, focus on it
+            self.username_entry.focus_set()
+        elif not self.password_entry.get():
+            # If password is empty, focus on it
+            self.password_entry.focus_set()
+        return "break"  # Prevent default behavior
 
     def validate_login(self):
         username = self.username_entry.get()
