@@ -91,12 +91,14 @@ class Sidebar(ctk.CTkFrame):
     def __init__(self, master, current_admin, on_section_change, on_logout):
         super().__init__(master, width=200, corner_radius=0)
         self.on_section_change = on_section_change
+        self.current_admin = current_admin
 
         # Configure grid
+        self.grid_columnconfigure(0, weight=1)  # Make column expand to fill width
         self.grid_rowconfigure(4, weight=1)
 
-        # Title
-        self._create_title()
+        # User Profile Section (replacing Menu title)
+        self._create_user_profile()
 
         # Navigation Buttons
         self._create_navigation_buttons(current_admin)
@@ -104,11 +106,44 @@ class Sidebar(ctk.CTkFrame):
         # Logout Button
         self._create_logout_button(on_logout)
 
-    def _create_title(self):
-        sidebar_title = ctk.CTkLabel(
-            self, text="Menu", font=ctk.CTkFont(size=20, weight="bold")
+    def _create_user_profile(self):
+        # Profile container
+        profile_frame = ctk.CTkFrame(self, fg_color="transparent")
+        profile_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 20))
+        profile_frame.grid_columnconfigure(0, weight=1)
+
+        # User avatar or icon (using an emoji as placeholder)
+        avatar_label = ctk.CTkLabel(
+            profile_frame,
+            text="👤",  # User icon emoji
+            font=ctk.CTkFont(size=32),
         )
-        sidebar_title.grid(row=0, column=0, padx=20, pady=(20, 10))
+        avatar_label.grid(row=0, column=0, pady=(5, 0))
+
+        # Username (in uppercase)
+        username_label = ctk.CTkLabel(
+            profile_frame,
+            text=self.current_admin.username.upper(),
+            font=ctk.CTkFont(size=16, weight="bold"),
+        )
+        username_label.grid(row=1, column=0, pady=(5, 0))
+
+        # Role as a subtle subtitle (not a button)
+        role_label = ctk.CTkLabel(
+            profile_frame,
+            text=self.current_admin.role.capitalize(),
+            font=ctk.CTkFont(size=12, slant="italic"),
+            text_color=("gray40", "gray60"),
+        )
+        role_label.grid(row=2, column=0, pady=(3, 8))
+
+        # Separator line
+        separator = ctk.CTkFrame(
+            profile_frame,
+            height=1,
+            fg_color=("gray75", "gray45")
+        )
+        separator.grid(row=3, column=0, sticky="ew", pady=(10, 0))
 
     def _create_navigation_buttons(self, current_admin):
         next_button_row = 1
@@ -127,19 +162,33 @@ class Sidebar(ctk.CTkFrame):
 
     def _create_button(self, text, row):
         button = ctk.CTkButton(
-            self, text=text, command=lambda: self.on_section_change(text)
+            self,
+            text=text.upper(),
+            command=lambda: self.on_section_change(text),
+            corner_radius=6,             # Rounded corners for elegant look
+            height=38,                   # Slightly shorter buttons
+            anchor="w",                  # Left-aligned text
+            fg_color=("gray85", "gray25"),  # Light/dark subtle background
+            text_color=("gray10", "gray90"),  # Dark/light text
+            hover_color=("#3a7ebf", "#1f538d"),  # Blue hover effect to match theme
+            border_width=0,              # No border
+            font=ctk.CTkFont(size=13),   # Slightly larger font
         )
-        button.grid(row=row, column=0, padx=20, pady=10, sticky="ew")
+        button.grid(row=row, column=0, padx=15, pady=(7, 0), sticky="ew")
 
     def _create_logout_button(self, on_logout):
         sign_out_button = ctk.CTkButton(
             self,
             text="Sign Out",
             command=on_logout,
-            fg_color="red",
-            hover_color="#c00000",
+            fg_color="red",              # Keep distinctive red color
+            hover_color="#c00000",       # Darker red on hover
+            corner_radius=6,             # Match navigation buttons
+            height=38,                   # Match navigation buttons
+            anchor="center",             # Center-aligned text as requested
+            font=ctk.CTkFont(size=13, weight="bold"),  # Bold for emphasis
         )
-        sign_out_button.grid(row=5, column=0, padx=20, pady=(10, 20), sticky="ews")
+        sign_out_button.grid(row=5, column=0, padx=15, pady=(20, 15), sticky="ews")
 
 
 class DashboardFrame(ctk.CTkFrame):
