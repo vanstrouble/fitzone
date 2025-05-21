@@ -1,5 +1,10 @@
 import customtkinter as ctk
-from crud import ensure_default_admin_exists, authenticate_admin, is_admin
+from crud import (
+    ensure_default_admin_exists,
+    authenticate_admin,
+    is_admin,
+    get_all_admins,
+)
 
 # Global color palette
 COLORS = {
@@ -321,21 +326,14 @@ class DashboardFrame(ctk.CTkFrame):
         self.content_frame.grid_rowconfigure(0, weight=1)
 
         # Main content with a lighter background to differentiate it
-        content_container = ctk.CTkFrame(
+        self.content_container = ctk.CTkFrame(
             self.content_frame,
             corner_radius=8,  # Slightly rounded corners
             fg_color=("white", "gray17"),  # Light/dark background for the content
         )
-        content_container.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        content_container.grid_columnconfigure(0, weight=1)
-        content_container.grid_rowconfigure(0, weight=1)
-
-        self.content_label = ctk.CTkLabel(
-            content_container,  # Change the parent to the new container
-            text="",
-            font=ctk.CTkFont(size=24, weight="bold"),
-        )
-        self.content_label.grid(row=0, column=0, padx=20, pady=20)
+        self.content_container.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        self.content_container.grid_columnconfigure(0, weight=1)
+        self.content_container.grid_rowconfigure(0, weight=1)
 
     def _show_default_content(self):
         default_section = (
@@ -344,10 +342,436 @@ class DashboardFrame(ctk.CTkFrame):
         self.show_content(default_section)
 
     def show_content(self, section_name):
-        self.content_label.configure(text=f"{section_name} Content")
+        # Check if this is a configuration section
+        if section_name.startswith("Configuration "):
+            username = section_name.split(" ", 1)[1]
+            self._show_user_configuration(username)
+        else:
+            # Clear previous content
+            for widget in self.content_container.winfo_children():
+                widget.destroy()
 
-        # Update sidebar active section
-        self.sidebar.set_active_section(section_name)
+            # Update sidebar active section
+            self.sidebar.set_active_section(section_name)
+
+            # Show the appropriate content based on section_name
+            if section_name == "Admins":
+                self._show_admins_table()
+            elif section_name == "Trainers":
+                self._show_trainers_table()
+            elif section_name == "Users":
+                self._show_users_table()
+            else:
+                # Fallback for unknown sections
+                self.content_label = ctk.CTkLabel(
+                    self.content_container,
+                    text=f"{section_name} Content",
+                    font=ctk.CTkFont(size=24, weight="bold"),
+                )
+                self.content_label.grid(row=0, column=0, padx=20, pady=20)
+
+    def _show_admins_table(self):
+        # Create a title
+        title_label = ctk.CTkLabel(
+            self.content_container,
+            text="Admin Users",
+            font=ctk.CTkFont(size=24, weight="bold"),
+        )
+        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+
+        # Create description
+        description_label = ctk.CTkLabel(
+            self.content_container,
+            text="View and manage system administrators",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_secondary"],
+        )
+        description_label.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
+
+        # Get admin data
+        admins = get_all_admins()
+
+        # Format admin data for the table
+        table_data = []
+        for admin in admins:
+            # Format created_at date
+            if hasattr(admin, 'created_at') and admin.created_at:
+                if isinstance(admin.created_at, str):
+                    created_at_text = admin.created_at
+                else:
+                    # If it's a datetime object
+                    created_at_text = admin.created_at.strftime("%Y-%m-%d %H:%M")
+            else:
+                created_at_text = "N/A"
+
+            # Create role badge data
+            role_badge = {
+                "type": "badge",
+                "text": admin.role,
+                "color": COLORS["primary"] if admin.role == "admin" else COLORS["accent"]
+            }
+
+            # Add row to table data
+            table_data.append([
+                str(admin.unique_id),
+                admin.username,
+                role_badge,
+                created_at_text
+            ])
+
+        # Create reusable table with headers and data
+        table = TableFrame(
+            self.content_container,
+            headers=["ID", "Username", "Role", "Created At"],
+            data=table_data
+        )
+        table.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
+
+        # Add action buttons below the table
+        buttons_frame = ctk.CTkFrame(
+            self.content_container,
+            fg_color="transparent",
+        )
+        buttons_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="e")
+
+        # Add Admin button
+        add_button = ctk.CTkButton(
+            buttons_frame,
+            text="Add Admin",
+            font=ctk.CTkFont(size=13),
+            fg_color=COLORS["primary"][0],
+            hover_color=COLORS["primary"][1],
+            corner_radius=6,
+            height=32,
+            width=120,
+            command=self._show_add_admin_form,
+        )
+        add_button.grid(row=0, column=0, padx=(0, 10))
+
+        # Refresh button
+        refresh_button = ctk.CTkButton(
+            buttons_frame,
+            text="Refresh",
+            font=ctk.CTkFont(size=13),
+            fg_color=("gray80", "gray30"),
+            hover_color=("gray70", "gray40"),
+            corner_radius=6,
+            height=32,
+            width=100,
+            command=lambda: self.show_content("Admins"),
+        )
+        refresh_button.grid(row=0, column=1)
+
+    def _show_trainers_table(self):
+        # Create a title
+        title_label = ctk.CTkLabel(
+            self.content_container,
+            text="Trainers",
+            font=ctk.CTkFont(size=24, weight="bold"),
+        )
+        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+
+        # Create description
+        description_label = ctk.CTkLabel(
+            self.content_container,
+            text="View and manage gym trainers",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_secondary"],
+        )
+        description_label.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
+
+        # Get trainer data
+        # This would need to be implemented in crud.py
+        # For now we'll use an empty list
+        trainers = []  # Replace with get_all_trainers() when implemented
+
+        # Format trainer data for the table
+        table_data = []
+        for trainer in trainers:
+            # Format created_at date
+            if hasattr(trainer, 'created_at') and trainer.created_at:
+                if isinstance(trainer.created_at, str):
+                    created_at_text = trainer.created_at
+                else:
+                    created_at_text = trainer.created_at.strftime("%Y-%m-%d %H:%M")
+            else:
+                created_at_text = "N/A"
+
+            # Add row to table data
+            table_data.append([
+                str(trainer.unique_id),
+                f"{trainer.name} {trainer.lastname}",
+                trainer.specialty,
+                f"{trainer.start_time} - {trainer.end_time}",
+                created_at_text
+            ])
+
+        # Create reusable table with headers and data
+        table = TableFrame(
+            self.content_container,
+            headers=["ID", "Name", "Specialty", "Schedule", "Created At"],
+            data=table_data
+        )
+        table.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
+
+        # Add action buttons below the table
+        buttons_frame = ctk.CTkFrame(
+            self.content_container,
+            fg_color="transparent",
+        )
+        buttons_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="e")
+
+        # Add Trainer button
+        add_button = ctk.CTkButton(
+            buttons_frame,
+            text="Add Trainer",
+            font=ctk.CTkFont(size=13),
+            fg_color=COLORS["primary"][0],
+            hover_color=COLORS["primary"][1],
+            corner_radius=6,
+            height=32,
+            width=120,
+            command=self._show_add_trainer_form,
+        )
+        add_button.grid(row=0, column=0, padx=(0, 10))
+
+        # Refresh button
+        refresh_button = ctk.CTkButton(
+            buttons_frame,
+            text="Refresh",
+            font=ctk.CTkFont(size=13),
+            fg_color=("gray80", "gray30"),
+            hover_color=("gray70", "gray40"),
+            corner_radius=6,
+            height=32,
+            width=100,
+            command=lambda: self.show_content("Trainers"),
+        )
+        refresh_button.grid(row=0, column=1)
+
+    def _show_users_table(self):
+        # Create a title
+        title_label = ctk.CTkLabel(
+            self.content_container,
+            text="Gym Users",
+            font=ctk.CTkFont(size=24, weight="bold"),
+        )
+        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+
+        # Create description
+        description_label = ctk.CTkLabel(
+            self.content_container,
+            text="View and manage gym members",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_secondary"],
+        )
+        description_label.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
+
+        # Get user data
+        # This would need to be implemented in crud.py
+        # For now we'll use an empty list
+        users = []  # Replace with get_all_users() when implemented
+
+        # Format user data for the table
+        table_data = []
+        for user in users:
+            # Add row to table data
+            table_data.append([
+                str(user.unique_id),
+                f"{user.name} {user.lastname}",
+                user.membership_type,
+                user.renovation_date,
+                user.created_at
+            ])
+
+        # Create reusable table with headers and data
+        table = TableFrame(
+            self.content_container,
+            headers=["ID", "Name", "Membership", "Renovation Date", "Created At"],
+            data=table_data
+        )
+        table.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
+
+        # Add action buttons below the table
+        buttons_frame = ctk.CTkFrame(
+            self.content_container,
+            fg_color="transparent",
+        )
+        buttons_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="e")
+
+        # Add User button
+        add_button = ctk.CTkButton(
+            buttons_frame,
+            text="Add User",
+            font=ctk.CTkFont(size=13),
+            fg_color=COLORS["primary"][0],
+            hover_color=COLORS["primary"][1],
+            corner_radius=6,
+            height=32,
+            width=120,
+            command=self._show_add_user_form,
+        )
+        add_button.grid(row=0, column=0, padx=(0, 10))
+
+        # Refresh button
+        refresh_button = ctk.CTkButton(
+            buttons_frame,
+            text="Refresh",
+            font=ctk.CTkFont(size=13),
+            fg_color=("gray80", "gray30"),
+            hover_color=("gray70", "gray40"),
+            corner_radius=6,
+            height=32,
+            width=100,
+            command=lambda: self.show_content("Users"),
+        )
+        refresh_button.grid(row=0, column=1)
+
+    def _show_add_admin_form(self):
+        # Create a dialog or replace the table view with a form
+        # For now, we'll just print a message
+        print("Add admin functionality to be implemented")
+
+    def _show_user_configuration(self, username):
+        # Clear previous content
+        for widget in self.content_container.winfo_children():
+            widget.destroy()
+
+        # Create a title
+        title_label = ctk.CTkLabel(
+            self.content_container,
+            text=f"User Configuration: {username}",
+            font=ctk.CTkFont(size=24, weight="bold"),
+        )
+        title_label.grid(row=0, column=0, padx=20, pady=20)
+
+        # Configuration content would go here
+
+    def _show_add_trainer_form(self):
+        # To be implemented
+        print("Add trainer functionality to be implemented")
+
+    def _show_add_user_form(self):
+        # To be implemented
+        print("Add user functionality to be implemented")
+
+
+class TableFrame(ctk.CTkFrame):
+    """A reusable table component that can display data in rows and columns"""
+
+    def __init__(
+        self,
+        master,
+        headers,
+        data=None,
+        row_height=30,
+        header_color=None,
+        row_color=None,
+    ):
+        super().__init__(
+            master,
+            fg_color=("gray95", "gray20"),
+            corner_radius=6,
+        )
+
+        self.headers = headers
+        self.data = data or []
+        self.row_height = row_height
+        self.header_color = header_color or ("gray90", "gray25")
+        self.row_color = row_color or ("white", "gray20")
+
+        # Configure column weights
+        for i in range(len(headers)):
+            self.grid_columnconfigure(i, weight=1)
+
+        # Create the table
+        self._create_table()
+
+    def _create_table(self):
+        # Clear any existing widgets
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        # Create headers
+        for i, header in enumerate(self.headers):
+            header_label = ctk.CTkLabel(
+                self,
+                text=header,
+                font=ctk.CTkFont(size=14, weight="bold"),
+            )
+            header_label.grid(row=0, column=i, padx=10, pady=(10, 5), sticky="w")
+
+        # Add a separator line
+        separator = ctk.CTkFrame(self, height=1, fg_color=("gray75", "gray45"))
+        separator.grid(row=1, column=0, columnspan=len(self.headers), sticky="ew", padx=10)
+
+        if not self.data:
+            no_data_label = ctk.CTkLabel(
+                self,
+                text="No data found",
+                font=ctk.CTkFont(size=14),
+                text_color=COLORS["text_secondary"],
+            )
+            no_data_label.grid(row=2, column=0, columnspan=len(self.headers), padx=20, pady=20)
+            return
+
+        # Add data rows
+        for row_idx, row_data in enumerate(self.data, start=2):
+            self._add_row(row_idx, row_data)
+
+    def _add_row(self, row_idx, row_data):
+        """Add a row of data to the table"""
+        for col_idx, cell_data in enumerate(row_data):
+            # Skip None values
+            if cell_data is None:
+                continue
+
+            # Check if the cell data is a dictionary with special rendering
+            if isinstance(cell_data, dict) and "type" in cell_data:
+                if cell_data["type"] == "badge":
+                    # Create a badge (label with background color)
+                    badge_frame = ctk.CTkFrame(
+                        self,
+                        fg_color=cell_data.get("color", COLORS["primary"]),
+                        corner_radius=4,
+                        height=22,
+                    )
+                    badge_frame.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
+
+                    badge_label = ctk.CTkLabel(
+                        badge_frame,
+                        text=str(cell_data.get("text", "")).upper(),
+                        font=ctk.CTkFont(size=11, weight="bold"),
+                        text_color="white",
+                    )
+                    badge_label.grid(row=0, column=0, padx=8, pady=0)
+                elif cell_data["type"] == "button":
+                    # Create a button
+                    button = ctk.CTkButton(
+                        self,
+                        text=cell_data.get("text", "Button"),
+                        font=ctk.CTkFont(size=12),
+                        command=cell_data.get("command"),
+                        fg_color=cell_data.get("color", COLORS["primary"][0]),
+                        hover_color=cell_data.get("hover_color", COLORS["primary"][1]),
+                        corner_radius=4,
+                        height=24,
+                        width=60,
+                    )
+                    button.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
+            else:
+                # Regular text cell
+                cell_label = ctk.CTkLabel(
+                    self,
+                    text=str(cell_data),
+                    font=ctk.CTkFont(size=13),
+                )
+                cell_label.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
+
+    def update_data(self, data):
+        """Update the table with new data"""
+        self.data = data
+        self._create_table()
 
 
 class App(ctk.CTk):
