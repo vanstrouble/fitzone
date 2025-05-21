@@ -100,7 +100,14 @@ class LoginFrame(ctk.CTkFrame):
 
 class Sidebar(ctk.CTkFrame):
     def __init__(self, master, current_admin, on_section_change, on_logout):
-        super().__init__(master, width=200, corner_radius=10)
+        super().__init__(
+            master,
+            width=200,  # Fixed width
+            corner_radius=0,  # No rounded corners
+            fg_color=("gray90", "gray20"),  # Sidebar background color
+        )
+        # Prevent the sidebar from resizing
+        self.grid_propagate(False)
         self.on_section_change = on_section_change
         self.current_admin = current_admin
 
@@ -247,21 +254,22 @@ class Sidebar(ctk.CTkFrame):
 
 class DashboardFrame(ctk.CTkFrame):
     def __init__(self, master, on_logout_callback, current_admin):
-        super().__init__(master)
+        # Use the main background color of the application instead of transparent
+        super().__init__(master, fg_color=COLORS["neutral_bg"], corner_radius=0)
         self.current_admin = current_admin
 
         # Configure grid
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)  # Content takes remaining space
+        self.grid_rowconfigure(0, weight=1)  # Single row with full height
 
-        # Create Sidebar
+        # Create Sidebar with the appropriate color
         self.sidebar = Sidebar(
             self,
             current_admin=current_admin,
             on_section_change=self.show_content,
             on_logout=on_logout_callback,
         )
-        self.sidebar.grid(row=0, column=0, sticky="nsw")
+        self.sidebar.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)  # No padding
 
         # Create Content Frame
         self._create_content_frame()
@@ -270,13 +278,31 @@ class DashboardFrame(ctk.CTkFrame):
         self._show_default_content()
 
     def _create_content_frame(self):
-        self.content_frame = ctk.CTkFrame(self, corner_radius=10)
-        self.content_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
+        # Change the background color of content_frame to match the general style
+        self.content_frame = ctk.CTkFrame(
+            self,
+            corner_radius=0,  # No rounded borders
+            fg_color=COLORS["neutral_bg"],  # Use the same neutral background color
+        )
+        # Remove right padding to avoid gray space
+        self.content_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
         self.content_frame.grid_columnconfigure(0, weight=1)
         self.content_frame.grid_rowconfigure(0, weight=1)
 
+        # Main content with a lighter background to differentiate it
+        content_container = ctk.CTkFrame(
+            self.content_frame,
+            corner_radius=8,  # Slightly rounded corners
+            fg_color=("white", "gray17"),  # Light/dark background for the content
+        )
+        content_container.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        content_container.grid_columnconfigure(0, weight=1)
+        content_container.grid_rowconfigure(0, weight=1)
+
         self.content_label = ctk.CTkLabel(
-            self.content_frame, text="", font=ctk.CTkFont(size=24, weight="bold")
+            content_container,  # Change the parent to the new container
+            text="",
+            font=ctk.CTkFont(size=24, weight="bold"),
         )
         self.content_label.grid(row=0, column=0, padx=20, pady=20)
 
@@ -302,6 +328,9 @@ class App(ctk.CTk):
         self.show_login()
 
     def window_config(self):
+        # Set the background color of the main application
+        self.configure(fg_color=COLORS["neutral_bg"])
+
         ctk.set_appearance_mode("light")
         ctk.set_default_color_theme("blue")
         self.title("FitZone - Management System")
@@ -313,16 +342,20 @@ class App(ctk.CTk):
         self.header_frame = ctk.CTkFrame(
             self,
             corner_radius=0,
-            fg_color=COLORS["primary"],
+            fg_color=COLORS["primary"][0],  # Use index 0 for light mode
+            height=60,  # Fixed height for the header
         )
         self.header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
         self.header_frame.grid_columnconfigure(0, weight=1)
+
+        # Force the header height
+        self.header_frame.grid_propagate(False)
 
         title_label = ctk.CTkLabel(
             self.header_frame,
             text="FITZONE",
             font=ctk.CTkFont(size=28, weight="bold"),
-            text_color="#ffffff",
+            text_color="white",  # Use direct value to ensure it's white
         )
         title_label.pack(pady=(10, 5))
 
@@ -330,14 +363,17 @@ class App(ctk.CTk):
             self.header_frame,
             text="Gym Management System",
             font=ctk.CTkFont(size=14),
-            text_color="#ffffff",
+            text_color="white",  # Use direct value to ensure it's white
         )
         subtitle_label.pack(pady=(0, 10))
 
+        # Remove rounded border and use the same background color for main_frame
         self.main_frame = ctk.CTkFrame(
-            self, corner_radius=10, fg_color=COLORS["neutral_bg"]
+            self, corner_radius=0, fg_color=COLORS["neutral_bg"]
         )
-        self.main_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
+        self.main_frame.grid(
+            row=1, column=0, sticky="nsew", padx=0, pady=0
+        )  # No padding
         self.main_frame.grid_columnconfigure(0, weight=1)
         self.main_frame.grid_rowconfigure(0, weight=1)
 
