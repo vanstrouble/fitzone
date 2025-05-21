@@ -1,6 +1,17 @@
 import customtkinter as ctk
 from crud import ensure_default_admin_exists, authenticate_admin, is_admin
 
+# Global color palette
+COLORS = {
+    "primary": ("#944388", "#7a3671"),  # Main color / darker variant
+    "accent": ("#ECA66C", "#d99558"),  # Accent color for highlights / darker variant
+    "danger": ("#D45276", "#b83d60"),  # Danger color for sign out / darker variant
+    "neutral_bg": ("#f0f0f0", "#2a2a2a"),  # Background colors (light/dark mode)
+    "neutral_fg": ("#e0e0e0", "#3a3a3a"),  # Foreground for frames
+    "text_primary": ("#303030", "#e0e0e0"),  # Primary text color
+    "text_secondary": ("#707070", "#a0a0a0"),  # Secondary text color
+}
+
 
 class LoginFrame(ctk.CTkFrame):
     def __init__(self, master, on_login_success):
@@ -26,7 +37,7 @@ class LoginFrame(ctk.CTkFrame):
             self,
             text="Please enter your credentials",
             font=ctk.CTkFont(size=14),
-            text_color=("gray40", "gray60"),
+            text_color=COLORS["text_secondary"],
         )
         login_subtitle.pack(pady=(0, 25))
 
@@ -54,7 +65,7 @@ class LoginFrame(ctk.CTkFrame):
         self.error_label = ctk.CTkLabel(
             self,
             text="",
-            text_color="red",
+            text_color=COLORS["danger"],
             font=ctk.CTkFont(size=12, weight="bold"),
         )
         self.error_label.pack(pady=(0, 5))
@@ -66,8 +77,8 @@ class LoginFrame(ctk.CTkFrame):
             height=40,
             corner_radius=8,
             font=ctk.CTkFont(size=15, weight="bold"),
-            hover_color=("#2b5f8f", "#144870"),
-            fg_color=("#3a7ebf", "#1f538d"),
+            hover_color=COLORS["primary"][1],
+            fg_color=COLORS["primary"][0],
             command=self.validate_login,
         )
         login_button.pack(pady=(0, 30))
@@ -83,13 +94,13 @@ class LoginFrame(ctk.CTkFrame):
             self.on_login_success(admin)
         else:
             self.error_label.configure(text="Invalid credentials. Please try again.")
-            self.username_entry.configure(border_color="red")
-            self.password_entry.configure(border_color="red")
+            self.username_entry.configure(border_color=COLORS["danger"][0])
+            self.password_entry.configure(border_color=COLORS["danger"][0])
 
 
 class Sidebar(ctk.CTkFrame):
     def __init__(self, master, current_admin, on_section_change, on_logout):
-        super().__init__(master, width=200, corner_radius=0)
+        super().__init__(master, width=200, corner_radius=10)
         self.on_section_change = on_section_change
         self.current_admin = current_admin
 
@@ -122,8 +133,8 @@ class Sidebar(ctk.CTkFrame):
             text="👤",  # User icon emoji
             font=ctk.CTkFont(size=32),
             fg_color="transparent",  # Transparent background
-            hover_color=("gray80", "gray30"),  # Subtle hover effect
-            text_color=("gray10", "gray90"),  # Match text color
+            hover_color=COLORS["accent"],  # Accent color for hover
+            text_color=COLORS["text_primary"],  # Match text color
             width=70,
             height=70,
             corner_radius=35,  # Make it circular
@@ -144,16 +155,12 @@ class Sidebar(ctk.CTkFrame):
             profile_frame,
             text=self.current_admin.role.capitalize(),
             font=ctk.CTkFont(size=12, slant="italic"),
-            text_color=("gray40", "gray60"),
+            text_color=COLORS["text_secondary"],
         )
         role_label.grid(row=2, column=0, pady=(3, 8))
 
         # Separator line
-        separator = ctk.CTkFrame(
-            profile_frame,
-            height=1,
-            fg_color=("gray75", "gray45")
-        )
+        separator = ctk.CTkFrame(profile_frame, height=1, fg_color=("gray75", "gray45"))
         separator.grid(row=3, column=0, sticky="ew", pady=(10, 0))
 
     def _on_profile_click(self):
@@ -181,14 +188,14 @@ class Sidebar(ctk.CTkFrame):
             self,
             text=text.upper(),
             command=lambda section=text: self._on_button_click(section),
-            corner_radius=6,             # Rounded corners for elegant look
-            height=38,                   # Slightly shorter buttons
-            anchor="w",                  # Left-aligned text
+            corner_radius=6,  # Rounded corners for elegant look
+            height=38,  # Slightly shorter buttons
+            anchor="w",  # Left-aligned text
             fg_color=("gray85", "gray25"),  # Default background
-            text_color=("gray10", "gray90"),  # Default text color
-            hover_color=("#3a7ebf", "#1f538d"),  # Blue hover effect
-            border_width=0,              # No border
-            font=ctk.CTkFont(size=13),   # Slightly larger font
+            text_color=COLORS["text_primary"],  # Default text color
+            hover_color=COLORS["accent"],  # Accent color for hover
+            border_width=0,  # No border
+            font=ctk.CTkFont(size=13),  # Slightly larger font
         )
         button.grid(row=row, column=0, padx=15, pady=(7, 0), sticky="ew")
 
@@ -210,14 +217,14 @@ class Sidebar(ctk.CTkFrame):
             if name == section:
                 # Selected button - highlight it
                 button.configure(
-                    fg_color=("#3a7ebf", "#1f538d"),  # Blue background
-                    text_color=("white", "white"),    # White text
+                    fg_color=COLORS["primary"],  # Primary background
+                    text_color=("white", "white"),  # White text
                 )
             else:
                 # Unselected buttons - default style
                 button.configure(
-                    fg_color=("gray85", "gray25"),    # Default background
-                    text_color=("gray10", "gray90"),  # Default text color
+                    fg_color=("gray85", "gray25"),  # Default background
+                    text_color=COLORS["text_primary"],  # Default text color
                 )
 
         # Update the active section
@@ -228,11 +235,11 @@ class Sidebar(ctk.CTkFrame):
             self,
             text="Sign Out",
             command=on_logout,
-            fg_color="red",              # Keep distinctive red color
-            hover_color="#c00000",       # Darker red on hover
-            corner_radius=6,             # Match navigation buttons
-            height=38,                   # Match navigation buttons
-            anchor="center",             # Center-aligned text as requested
+            fg_color=COLORS["danger"][0],  # Danger color
+            hover_color=COLORS["danger"][1],  # Darker danger color on hover
+            corner_radius=6,  # Match navigation buttons
+            height=38,  # Match navigation buttons
+            anchor="center",  # Center-aligned text as requested
             font=ctk.CTkFont(size=13, weight="bold"),  # Bold for emphasis
         )
         sign_out_button.grid(row=5, column=0, padx=15, pady=(20, 15), sticky="ews")
@@ -306,7 +313,7 @@ class App(ctk.CTk):
         self.header_frame = ctk.CTkFrame(
             self,
             corner_radius=0,
-            fg_color=("#3a7ebf", "#1f538d"),
+            fg_color=COLORS["primary"],
         )
         self.header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
         self.header_frame.grid_columnconfigure(0, weight=1)
@@ -328,7 +335,7 @@ class App(ctk.CTk):
         subtitle_label.pack(pady=(0, 10))
 
         self.main_frame = ctk.CTkFrame(
-            self, corner_radius=10, fg_color=("gray90", "gray16")
+            self, corner_radius=10, fg_color=COLORS["neutral_bg"]
         )
         self.main_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=20)
         self.main_frame.grid_columnconfigure(0, weight=1)
