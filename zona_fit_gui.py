@@ -93,11 +93,15 @@ class Sidebar(ctk.CTkFrame):
         self.on_section_change = on_section_change
         self.current_admin = current_admin
 
+        # Track the active section and buttons
+        self.active_section = None
+        self.nav_buttons = {}
+
         # Configure grid
         self.grid_columnconfigure(0, weight=1)  # Make column expand to fill width
         self.grid_rowconfigure(4, weight=1)
 
-        # User Profile Section (replacing Menu title)
+        # User Profile Section
         self._create_user_profile()
 
         # Navigation Buttons
@@ -164,17 +168,48 @@ class Sidebar(ctk.CTkFrame):
         button = ctk.CTkButton(
             self,
             text=text.upper(),
-            command=lambda: self.on_section_change(text),
+            command=lambda section=text: self._on_button_click(section),
             corner_radius=6,             # Rounded corners for elegant look
             height=38,                   # Slightly shorter buttons
             anchor="w",                  # Left-aligned text
-            fg_color=("gray85", "gray25"),  # Light/dark subtle background
-            text_color=("gray10", "gray90"),  # Dark/light text
-            hover_color=("#3a7ebf", "#1f538d"),  # Blue hover effect to match theme
+            fg_color=("gray85", "gray25"),  # Default background
+            text_color=("gray10", "gray90"),  # Default text color
+            hover_color=("#3a7ebf", "#1f538d"),  # Blue hover effect
             border_width=0,              # No border
             font=ctk.CTkFont(size=13),   # Slightly larger font
         )
         button.grid(row=row, column=0, padx=15, pady=(7, 0), sticky="ew")
+
+        # Store the button reference for later use
+        self.nav_buttons[text] = button
+
+        return button
+
+    def _on_button_click(self, section):
+        # Update active section and button appearances
+        self.set_active_section(section)
+        # Call the original callback
+        self.on_section_change(section)
+
+    def set_active_section(self, section):
+        """Set the active section and update button appearances"""
+        # Reset all buttons to default style
+        for name, button in self.nav_buttons.items():
+            if name == section:
+                # Selected button - highlight it
+                button.configure(
+                    fg_color=("#3a7ebf", "#1f538d"),  # Blue background
+                    text_color=("white", "white"),    # White text
+                )
+            else:
+                # Unselected buttons - default style
+                button.configure(
+                    fg_color=("gray85", "gray25"),    # Default background
+                    text_color=("gray10", "gray90"),  # Default text color
+                )
+
+        # Update the active section
+        self.active_section = section
 
     def _create_logout_button(self, on_logout):
         sign_out_button = ctk.CTkButton(
@@ -234,6 +269,9 @@ class DashboardFrame(ctk.CTkFrame):
 
     def show_content(self, section_name):
         self.content_label.configure(text=f"{section_name} Content")
+
+        # Update sidebar active section
+        self.sidebar.set_active_section(section_name)
 
 
 class App(ctk.CTk):
