@@ -116,13 +116,20 @@ class Sidebar(ctk.CTkFrame):
         profile_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 20))
         profile_frame.grid_columnconfigure(0, weight=1)
 
-        # User avatar or icon (using an emoji as placeholder)
-        avatar_label = ctk.CTkLabel(
+        # User avatar or icon as a clickable button
+        avatar_button = ctk.CTkButton(
             profile_frame,
             text="👤",  # User icon emoji
             font=ctk.CTkFont(size=32),
+            fg_color="transparent",  # Transparent background
+            hover_color=("gray80", "gray30"),  # Subtle hover effect
+            text_color=("gray10", "gray90"),  # Match text color
+            width=70,
+            height=70,
+            corner_radius=35,  # Make it circular
+            command=self._on_profile_click,  # Add command to handle click
         )
-        avatar_label.grid(row=0, column=0, pady=(5, 0))
+        avatar_button.grid(row=0, column=0, pady=(5, 0))
 
         # Username (in uppercase)
         username_label = ctk.CTkLabel(
@@ -148,6 +155,11 @@ class Sidebar(ctk.CTkFrame):
             fg_color=("gray75", "gray45")
         )
         separator.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+
+    def _on_profile_click(self):
+        """Handle when the user clicks on their profile avatar"""
+        # Call the parent's content change method with the specific configuration section
+        self.on_section_change(f"Configuration {self.current_admin.username}")
 
     def _create_navigation_buttons(self, current_admin):
         next_button_row = 1
