@@ -371,189 +371,64 @@ class DashboardFrame(ctk.CTkFrame):
                 self.content_label.grid(row=0, column=0, padx=20, pady=20)
 
     def _show_admins_table(self):
-        # Create a title
-        title_label = ctk.CTkLabel(
-            self.content_container,
-            text="Admin Users",
-            font=ctk.CTkFont(size=24, weight="bold"),
-        )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
-
-        # Create description
-        description_label = ctk.CTkLabel(
-            self.content_container,
-            text="View and manage system administrators",
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_secondary"],
-        )
-        description_label.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
-
-        # Get admin data
-        admins = get_all_admins()
-
-        # Format admin data for the table
-        table_data = []
-        for admin in admins:
-            # Format created_at date
-            if hasattr(admin, 'created_at') and admin.created_at:
-                if isinstance(admin.created_at, str):
-                    created_at_text = admin.created_at
-                else:
-                    # If it's a datetime object
-                    created_at_text = admin.created_at.strftime("%Y-%m-%d %H:%M")
-            else:
-                created_at_text = "N/A"
-
-            # Create role badge data
-            role_badge = {
-                "type": "badge",
-                "text": admin.role,
-                "color": COLORS["primary"] if admin.role == "admin" else COLORS["accent"]
-            }
-
-            # Add row to table data
-            table_data.append([
-                str(admin.unique_id),
-                admin.username,
-                role_badge,
-                created_at_text
-            ])
-
-        # Create reusable table with headers and data
-        table = TableFrame(
-            self.content_container,
+        self._create_table_view(
+            section_name="Admins",
+            title="Admin Users",
+            description="View and manage system administrators",
             headers=["ID", "Username", "Role", "Created At"],
-            data=table_data
+            data_func=get_all_admins
         )
-        table.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
-
-        # Add action buttons below the table
-        buttons_frame = ctk.CTkFrame(
-            self.content_container,
-            fg_color="transparent",
-        )
-        buttons_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="e")
-
-        # Add Admin button
-        add_button = ctk.CTkButton(
-            buttons_frame,
-            text="Add Admin",
-            font=ctk.CTkFont(size=13),
-            fg_color=COLORS["primary"][0],
-            hover_color=COLORS["primary"][1],
-            corner_radius=6,
-            height=32,
-            width=120,
-            command=self._show_add_admin_form,
-        )
-        add_button.grid(row=0, column=0, padx=(0, 10))
-
-        # Refresh button
-        refresh_button = ctk.CTkButton(
-            buttons_frame,
-            text="Refresh",
-            font=ctk.CTkFont(size=13),
-            fg_color=("gray80", "gray30"),
-            hover_color=("gray70", "gray40"),
-            corner_radius=6,
-            height=32,
-            width=100,
-            command=lambda: self.show_content("Admins"),
-        )
-        refresh_button.grid(row=0, column=1)
 
     def _show_trainers_table(self):
-        # Create a title
-        title_label = ctk.CTkLabel(
-            self.content_container,
-            text="Trainers",
-            font=ctk.CTkFont(size=24, weight="bold"),
-        )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
-
-        # Create description
-        description_label = ctk.CTkLabel(
-            self.content_container,
-            text="View and manage gym trainers",
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_secondary"],
-        )
-        description_label.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
-
-        # Get trainer data
-        # This would need to be implemented in crud.py
-        # For now we'll use an empty list
-        trainers = []  # Replace with get_all_trainers() when implemented
-
-        # Format trainer data for the table
-        table_data = []
-        for trainer in trainers:
-            # Format created_at date
-            if hasattr(trainer, 'created_at') and trainer.created_at:
-                if isinstance(trainer.created_at, str):
-                    created_at_text = trainer.created_at
-                else:
-                    created_at_text = trainer.created_at.strftime("%Y-%m-%d %H:%M")
-            else:
-                created_at_text = "N/A"
-
-            # Add row to table data
-            table_data.append([
-                str(trainer.unique_id),
-                f"{trainer.name} {trainer.lastname}",
-                trainer.specialty,
-                f"{trainer.start_time} - {trainer.end_time}",
-                created_at_text
-            ])
-
-        # Create reusable table with headers and data
-        table = TableFrame(
-            self.content_container,
+        # Note: Using None instead of get_all_trainers since it's not imported
+        self._create_table_view(
+            section_name="Trainers",
+            title="Trainers",
+            description="View and manage gym trainers",
             headers=["ID", "Name", "Specialty", "Schedule", "Created At"],
-            data=table_data
+            data_func=None,
+            empty_data=[]
         )
-        table.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
-
-        # Add action buttons below the table
-        buttons_frame = ctk.CTkFrame(
-            self.content_container,
-            fg_color="transparent",
-        )
-        buttons_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="e")
-
-        # Add Trainer button
-        add_button = ctk.CTkButton(
-            buttons_frame,
-            text="Add Trainer",
-            font=ctk.CTkFont(size=13),
-            fg_color=COLORS["primary"][0],
-            hover_color=COLORS["primary"][1],
-            corner_radius=6,
-            height=32,
-            width=120,
-            command=self._show_add_trainer_form,
-        )
-        add_button.grid(row=0, column=0, padx=(0, 10))
-
-        # Refresh button
-        refresh_button = ctk.CTkButton(
-            buttons_frame,
-            text="Refresh",
-            font=ctk.CTkFont(size=13),
-            fg_color=("gray80", "gray30"),
-            hover_color=("gray70", "gray40"),
-            corner_radius=6,
-            height=32,
-            width=100,
-            command=lambda: self.show_content("Trainers"),
-        )
-        refresh_button.grid(row=0, column=1)
 
     def _show_users_table(self):
+        # Note: Using None instead of get_all_users since it's not imported
+        self._create_table_view(
+            section_name="Users",
+            title="Gym Users",
+            description="View and manage gym members",
+            headers=["ID", "Name", "Membership", "Renovation Date", "Created At"],
+            data_func=None,
+            empty_data=[]
+        )
+
+    def _create_table_view(
+        self,
+        section_name,
+        title,
+        description,
+        headers,
+        data_func,
+        empty_data=None
+    ):
+        """
+        Create a standard table view for different sections (Admins, Trainers, Users)
+
+        Parameters:
+        - section_name: The name of the section (e.g., "Admins", "Trainers", "Users")
+        - title: The title to display
+        - description: Description text to show below the title
+        - headers: List of column headers for the table
+        - data_func: Function to get data or None to use empty_data
+        - empty_data: Default empty data if data_func is None
+        """
+        # Clear previous content
+        for widget in self.content_container.winfo_children():
+            widget.destroy()
+
         # Create a title
         title_label = ctk.CTkLabel(
             self.content_container,
-            text="Gym Users",
+            text=title,
             font=ctk.CTkFont(size=24, weight="bold"),
         )
         title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
@@ -561,33 +436,22 @@ class DashboardFrame(ctk.CTkFrame):
         # Create description
         description_label = ctk.CTkLabel(
             self.content_container,
-            text="View and manage gym members",
+            text=description,
             font=ctk.CTkFont(size=14),
             text_color=COLORS["text_secondary"],
         )
         description_label.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
 
-        # Get user data
-        # This would need to be implemented in crud.py
-        # For now we'll use an empty list
-        users = []  # Replace with get_all_users() when implemented
+        # Get data
+        items = data_func() if data_func else empty_data or []
 
-        # Format user data for the table
-        table_data = []
-        for user in users:
-            # Add row to table data
-            table_data.append([
-                str(user.unique_id),
-                f"{user.name} {user.lastname}",
-                user.membership_type,
-                user.renovation_date,
-                user.created_at
-            ])
+        # Format data for the table based on section_name
+        table_data = self._format_table_data(section_name, items)
 
         # Create reusable table with headers and data
         table = TableFrame(
             self.content_container,
-            headers=["ID", "Name", "Membership", "Renovation Date", "Created At"],
+            headers=headers,
             data=table_data
         )
         table.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
@@ -599,17 +463,21 @@ class DashboardFrame(ctk.CTkFrame):
         )
         buttons_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="e")
 
-        # Add User button
+        # Add button
         add_button = ctk.CTkButton(
             buttons_frame,
-            text="Add User",
+            text=(
+                f"Add {section_name[:-1]}"
+                if section_name.endswith("s")
+                else f"Add {section_name}"
+            ),
             font=ctk.CTkFont(size=13),
             fg_color=COLORS["primary"][0],
             hover_color=COLORS["primary"][1],
             corner_radius=6,
             height=32,
             width=120,
-            command=self._show_add_user_form,
+            command=getattr(self, f"_show_add_{section_name.lower()[:-1]}_form"),
         )
         add_button.grid(row=0, column=0, padx=(0, 10))
 
@@ -623,9 +491,70 @@ class DashboardFrame(ctk.CTkFrame):
             corner_radius=6,
             height=32,
             width=100,
-            command=lambda: self.show_content("Users"),
+            command=lambda: self.show_content(section_name),
         )
         refresh_button.grid(row=0, column=1)
+
+    def _format_table_data(self, section_name, items):
+        """Format data for the table based on section name"""
+        table_data = []
+
+        if not items:
+            return table_data
+
+        if section_name == "Admins":
+            for admin in items:
+                # Format created_at date
+                created_at_text = self._format_date(admin.created_at)
+
+                # Create role badge data
+                role_badge = {
+                    "type": "badge",
+                    "text": admin.role,
+                    "color": COLORS["primary"] if admin.role == "admin" else COLORS["accent"]
+                }
+
+                table_data.append([
+                    str(admin.unique_id),
+                    admin.username,
+                    role_badge,
+                    created_at_text
+                ])
+
+        elif section_name == "Trainers":
+            for trainer in items:
+                created_at_text = self._format_date(trainer.created_at)
+
+                table_data.append([
+                    str(trainer.unique_id),
+                    f"{trainer.name} {trainer.lastname}",
+                    trainer.specialty,
+                    f"{trainer.start_time} - {trainer.end_time}",
+                    created_at_text
+                ])
+
+        elif section_name == "Users":
+            for user in items:
+                table_data.append([
+                    str(user.unique_id),
+                    f"{user.name} {user.lastname}",
+                    user.membership_type,
+                    user.renovation_date,
+                    self._format_date(user.created_at)
+                ])
+
+        return table_data
+
+    def _format_date(self, date_value):
+        """Format date consistently across all tables"""
+        if not date_value:
+            return "N/A"
+
+        if isinstance(date_value, str):
+            return date_value
+        else:
+            # If it's a datetime object
+            return date_value.strftime("%Y-%m-%d %H:%M")
 
     def _show_add_admin_form(self):
         # Create a dialog or replace the table view with a form
