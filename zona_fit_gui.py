@@ -98,12 +98,12 @@ class LoginFrame(ctk.CTkFrame):
 
     def clear_username(self, event=None):
         """Clear the username entry field"""
-        self.username_entry.delete(0, 'end')
+        self.username_entry.delete(0, "end")
         return "break"  # Prevent default behavior
 
     def clear_password(self, event=None):
         """Clear the password entry field"""
-        self.password_entry.delete(0, 'end')
+        self.password_entry.delete(0, "end")
         return "break"  # Prevent default behavior
 
     def on_return_key(self, event=None):
@@ -376,7 +376,7 @@ class DashboardFrame(ctk.CTkFrame):
             title="Admin Users",
             description="View and manage system administrators",
             headers=["ID", "Username", "Role", "Created At"],
-            data_func=get_all_admins
+            data_func=get_all_admins,
         )
 
     def _show_trainers_table(self):
@@ -387,7 +387,7 @@ class DashboardFrame(ctk.CTkFrame):
             description="View and manage gym trainers",
             headers=["ID", "Name", "Specialty", "Schedule", "Created At"],
             data_func=None,
-            empty_data=[]
+            empty_data=[],
         )
 
     def _show_users_table(self):
@@ -398,17 +398,11 @@ class DashboardFrame(ctk.CTkFrame):
             description="View and manage gym members",
             headers=["ID", "Name", "Membership", "Renovation Date", "Created At"],
             data_func=None,
-            empty_data=[]
+            empty_data=[],
         )
 
     def _create_table_view(
-        self,
-        section_name,
-        title,
-        description,
-        headers,
-        data_func,
-        empty_data=None
+        self, section_name, title, description, headers, data_func, empty_data=None
     ):
         """
         Create a standard table view for different sections (Admins, Trainers, Users)
@@ -425,13 +419,25 @@ class DashboardFrame(ctk.CTkFrame):
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
+        # Configure row weights to make the table expand vertically
+        self.content_container.grid_rowconfigure(0, weight=0)  # Title - fixed height
+        self.content_container.grid_rowconfigure(
+            1, weight=0
+        )  # Description - fixed height
+        self.content_container.grid_rowconfigure(
+            2, weight=1
+        )  # Table - takes remaining space
+        self.content_container.grid_rowconfigure(3, weight=0)  # Buttons - fixed height
+
         # Create a title
         title_label = ctk.CTkLabel(
             self.content_container,
             text=title,
             font=ctk.CTkFont(size=24, weight="bold"),
         )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+        title_label.grid(
+            row=0, column=0, padx=20, pady=(20, 5), sticky="w"
+        )  # Reduced bottom padding
 
         # Create description
         description_label = ctk.CTkLabel(
@@ -440,7 +446,9 @@ class DashboardFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=14),
             text_color=COLORS["text_secondary"],
         )
-        description_label.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="w")
+        description_label.grid(
+            row=1, column=0, padx=20, pady=(0, 10), sticky="w"
+        )  # Reduced bottom padding
 
         # Get data
         items = data_func() if data_func else empty_data or []
@@ -449,12 +457,10 @@ class DashboardFrame(ctk.CTkFrame):
         table_data = self._format_table_data(section_name, items)
 
         # Create reusable table with headers and data
-        table = TableFrame(
-            self.content_container,
-            headers=headers,
-            data=table_data
-        )
-        table.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        table = TableFrame(self.content_container, headers=headers, data=table_data)
+        table.grid(
+            row=2, column=0, padx=20, pady=(0, 10), sticky="nsew"
+        )  # Make table fill available space
 
         # Add action buttons below the table
         buttons_frame = ctk.CTkFrame(
@@ -511,37 +517,40 @@ class DashboardFrame(ctk.CTkFrame):
                 role_badge = {
                     "type": "badge",
                     "text": admin.role,
-                    "color": COLORS["primary"] if admin.role == "admin" else COLORS["accent"]
+                    "color": (
+                        COLORS["primary"] if admin.role == "admin" else COLORS["accent"]
+                    ),
                 }
 
-                table_data.append([
-                    str(admin.unique_id),
-                    admin.username,
-                    role_badge,
-                    created_at_text
-                ])
+                table_data.append(
+                    [str(admin.unique_id), admin.username, role_badge, created_at_text]
+                )
 
         elif section_name == "Trainers":
             for trainer in items:
                 created_at_text = self._format_date(trainer.created_at)
 
-                table_data.append([
-                    str(trainer.unique_id),
-                    f"{trainer.name} {trainer.lastname}",
-                    trainer.specialty,
-                    f"{trainer.start_time} - {trainer.end_time}",
-                    created_at_text
-                ])
+                table_data.append(
+                    [
+                        str(trainer.unique_id),
+                        f"{trainer.name} {trainer.lastname}",
+                        trainer.specialty,
+                        f"{trainer.start_time} - {trainer.end_time}",
+                        created_at_text,
+                    ]
+                )
 
         elif section_name == "Users":
             for user in items:
-                table_data.append([
-                    str(user.unique_id),
-                    f"{user.name} {user.lastname}",
-                    user.membership_type,
-                    user.renovation_date,
-                    self._format_date(user.created_at)
-                ])
+                table_data.append(
+                    [
+                        str(user.unique_id),
+                        f"{user.name} {user.lastname}",
+                        user.membership_type,
+                        user.renovation_date,
+                        self._format_date(user.created_at),
+                    ]
+                )
 
         return table_data
 
@@ -596,6 +605,7 @@ class TableFrame(ctk.CTkFrame):
         row_height=30,
         header_color=None,
         row_color=None,
+        min_height=300,  # Added minimum height parameter
     ):
         super().__init__(
             master,
@@ -608,10 +618,22 @@ class TableFrame(ctk.CTkFrame):
         self.row_height = row_height
         self.header_color = header_color or ("gray90", "gray25")
         self.row_color = row_color or ("white", "gray20")
+        self.min_height = min_height
+
+        # Set minimum height
+        self.configure(height=min_height)
+
+        # Prevent resizing smaller than minimum height
+        self.grid_propagate(False)
 
         # Configure column weights
         for i in range(len(headers)):
             self.grid_columnconfigure(i, weight=1)
+
+        # Configure row weights to fill vertical space
+        self.grid_rowconfigure(
+            2, weight=1
+        )  # Make the "no data" or table content row expandable
 
         # Create the table
         self._create_table()
@@ -632,7 +654,9 @@ class TableFrame(ctk.CTkFrame):
 
         # Add a separator line
         separator = ctk.CTkFrame(self, height=1, fg_color=("gray75", "gray45"))
-        separator.grid(row=1, column=0, columnspan=len(self.headers), sticky="ew", padx=10)
+        separator.grid(
+            row=1, column=0, columnspan=len(self.headers), sticky="ew", padx=10
+        )
 
         if not self.data:
             no_data_label = ctk.CTkLabel(
@@ -641,12 +665,35 @@ class TableFrame(ctk.CTkFrame):
                 font=ctk.CTkFont(size=14),
                 text_color=COLORS["text_secondary"],
             )
-            no_data_label.grid(row=2, column=0, columnspan=len(self.headers), padx=20, pady=20)
+            no_data_label.grid(
+                row=2,
+                column=0,
+                columnspan=len(self.headers),
+                padx=20,
+                pady=20,
+                sticky="n",
+            )
+
+            # Add an empty frame to fill the space
+            spacer = ctk.CTkFrame(self, fg_color="transparent")
+            spacer.grid(row=3, column=0, columnspan=len(self.headers), sticky="nsew")
+            self.grid_rowconfigure(3, weight=1)
             return
 
         # Add data rows
         for row_idx, row_data in enumerate(self.data, start=2):
             self._add_row(row_idx, row_data)
+
+        # If there are few rows, add a spacer to fill the remaining space
+        if len(self.data) < 5:  # Arbitrary threshold for "few rows"
+            spacer = ctk.CTkFrame(self, fg_color="transparent")
+            spacer.grid(
+                row=len(self.data) + 2,
+                column=0,
+                columnspan=len(self.headers),
+                sticky="nsew",
+            )
+            self.grid_rowconfigure(len(self.data) + 2, weight=1)
 
     def _add_row(self, row_idx, row_data):
         """Add a row of data to the table"""
@@ -665,7 +712,9 @@ class TableFrame(ctk.CTkFrame):
                         corner_radius=4,
                         height=22,
                     )
-                    badge_frame.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
+                    badge_frame.grid(
+                        row=row_idx, column=col_idx, padx=10, pady=5, sticky="w"
+                    )
 
                     badge_label = ctk.CTkLabel(
                         badge_frame,
@@ -687,7 +736,9 @@ class TableFrame(ctk.CTkFrame):
                         height=24,
                         width=60,
                     )
-                    button.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
+                    button.grid(
+                        row=row_idx, column=col_idx, padx=10, pady=5, sticky="w"
+                    )
             else:
                 # Regular text cell
                 cell_label = ctk.CTkLabel(
@@ -695,7 +746,9 @@ class TableFrame(ctk.CTkFrame):
                     text=str(cell_data),
                     font=ctk.CTkFont(size=13),
                 )
-                cell_label.grid(row=row_idx, column=col_idx, padx=10, pady=5, sticky="w")
+                cell_label.grid(
+                    row=row_idx, column=col_idx, padx=10, pady=5, sticky="w"
+                )
 
     def update_data(self, data):
         """Update the table with new data"""
