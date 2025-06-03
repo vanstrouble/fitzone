@@ -3,6 +3,7 @@ from crud import (
     ensure_default_admin_exists,
     authenticate_admin,
     is_admin,
+    get_all_admins,
 )
 
 # Global color palette
@@ -374,22 +375,214 @@ class DashboardFrame(ctk.CTkFrame):
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
-        # Create a title
+        # Configure grid for the content container
+        self.content_container.grid_columnconfigure(0, weight=1)
+        self.content_container.grid_rowconfigure(1, weight=1)
+
+        # Title
         title_label = ctk.CTkLabel(
             self.content_container,
-            text="Admin Users",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            text="Admin Management",
+            font=ctk.CTkFont(size=24, weight="bold")
         )
-        title_label.grid(row=0, column=0, padx=20, pady=20)
+        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
 
-        # Placeholder content
-        content_label = ctk.CTkLabel(
+        # Get admin data
+        admins_data = get_all_admins()
+
+        # Convert admin objects to list format for table
+        self.admin_headers = ["ID", "Username", "Role", "Created At"]
+        self.admin_data = []
+        for idx, admin in enumerate(admins_data):
+            # Format created_at date if available
+            created_at_str = "N/A"
+            if hasattr(admin, 'created_at') and admin.created_at:
+                from datetime import datetime
+                if isinstance(admin.created_at, str):
+                    try:
+                        # Assume format is "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DD"
+                        date_part = admin.created_at.split(' ')[0]
+                        dt = datetime.strptime(date_part, "%Y-%m-%d")
+                        created_at_str = dt.strftime("%d/%m/%Y")
+                    except (ValueError, IndexError):
+                        created_at_str = str(admin.created_at)
+                else:
+                    # It's a datetime object
+                    created_at_str = admin.created_at.strftime("%d/%m/%Y")
+
+            self.admin_data.append([
+                str(idx + 1),  # Use sequential ID starting from 1
+                admin.username,
+                admin.role.capitalize() if admin.role else "Admin",
+                created_at_str
+            ])
+
+        # Variables for row selection
+        self.selected_admin_row = None
+        self.admin_row_widgets = {}
+
+        # Create table with grid
+        self._create_admin_table()
+
+    def _create_admin_table(self):
+        # Frame contenedor principal para la tabla
+        main_table_frame = ctk.CTkFrame(
             self.content_container,
-            text="Admins content will be implemented here",
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_secondary"],
+            fg_color=("white", "gray17")
         )
-        content_label.grid(row=1, column=0, padx=20, pady=20)
+        main_table_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
+        main_table_frame.grid_columnconfigure(0, weight=1)
+        main_table_frame.grid_rowconfigure(1, weight=1)
+
+        # Frame fijo para headers (no se desplaza)
+        header_frame = ctk.CTkFrame(main_table_frame, fg_color=("gray85", "gray25"))
+        header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 2))
+
+        # CONFIGURACIÓN: Pesos diferentes para cada columna en header
+        header_frame.grid_columnconfigure(0, weight=1, minsize=60)   # ID - peso menor
+        header_frame.grid_columnconfigure(1, weight=3, minsize=120)  # Username - peso mayor
+        header_frame.grid_columnconfigure(2, weight=2, minsize=100)  # Role - peso medio
+        header_frame.grid_columnconfigure(3, weight=2, minsize=100)  # Created At - peso medio
+
+        # Crear headers fijos
+        header_colors = [
+            ("gray75", "gray35"),
+            ("gray80", "gray30"),
+            ("gray80", "gray30"),
+            ("gray80", "gray30")
+        ]
+        for col_idx, header in enumerate(self.admin_headers):
+            header_label = ctk.CTkLabel(
+                header_frame,
+                text=header,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                fg_color=header_colors[col_idx],
+                corner_radius=6,
+                height=35
+            )
+            header_label.grid(row=0, column=col_idx, sticky="ew", padx=2, pady=2)
+
+        # Frame scrollable para las filas de datos
+        scrollable_frame = ctk.CTkScrollableFrame(
+            main_table_frame,
+            fg_color=("gray95", "gray20"),
+            corner_radius=6,
+            scrollbar_button_color=("gray70", "gray55"),  # macOS-style scrollbar color
+            scrollbar_button_hover_color=("gray60", "gray40"),  # Darker on hover
+        )
+        scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
+
+        # IMPORTANTE: Configurar columnas del scrollable frame con mismos pesos que header
+        scrollable_frame.grid_columnconfigure(0, weight=1, minsize=60)   # ID - peso menor
+        scrollable_frame.grid_columnconfigure(1, weight=3, minsize=120)  # Username - peso mayor
+        scrollable_frame.grid_columnconfigure(2, weight=2, minsize=100)  # Role - peso medio
+        scrollable_frame.grid_columnconfigure(3, weight=2, minsize=100)  # Created At - peso medio
+
+        # Crear filas de datos en el frame scrollable
+        for row_idx, row_data in enumerate(self.admin_data):
+            # Almacenar widgets de la fila para selección
+            self.admin_row_widgets[row_idx] = []
+
+            for col_idx, cell_data in enumerate(row_data):
+                # Alternar colores de fila
+                if row_idx % 2 == 0:
+                    bg_color = ("gray90", "gray25")
+                else:
+                    bg_color = ("white", "gray20")
+
+                # Color especial para columna ID
+                if col_idx == 0:  # Columna ID
+                    bg_color = ("gray85", "gray30") if row_idx % 2 == 0 else ("gray95", "gray25")
+
+                cell_label = ctk.CTkLabel(
+                    scrollable_frame,
+                    text=str(cell_data),
+                    font=ctk.CTkFont(size=13),
+                    fg_color=bg_color,
+                    corner_radius=4,
+                    height=30
+                )
+                cell_label.grid(row=row_idx, column=col_idx, sticky="ew", padx=2, pady=1)
+
+                # Hacer la celda clickeable para seleccionar la fila
+                cell_label.bind("<Button-1>", lambda e, idx=row_idx: self._select_admin_row(idx))
+
+                # Almacenar referencia del widget para cambio de color
+                self.admin_row_widgets[row_idx].append(cell_label)
+
+        # Información de configuración
+        config_frame = ctk.CTkFrame(
+            self.content_container,
+            fg_color=("gray95", "gray25")
+        )
+        config_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 20))
+
+        config_title = ctk.CTkLabel(
+            config_frame,
+            text="Table Configuration:",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        config_title.pack(pady=(10, 5))
+
+        config_details = ctk.CTkLabel(
+            config_frame,
+            text="• ID: weight=1, minsize=60px (narrow)\n" +
+                 "• Username: weight=3, minsize=120px (expandable)\n" +
+                 "• Role: weight=2, minsize=100px (medium)\n" +
+                 "• Created At: weight=2, minsize=100px (medium)",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["text_secondary"],
+            justify="left"
+        )
+        config_details.pack(pady=(0, 10))
+
+    def _select_admin_row(self, row_idx):
+        """Seleccionar una fila de admin y resaltar visualmente"""
+        # Deseleccionar fila anterior si existe
+        if (self.selected_admin_row is not None and
+                self.selected_admin_row in self.admin_row_widgets):
+            old_row_widgets = self.admin_row_widgets[self.selected_admin_row]
+            for col_idx, widget in enumerate(old_row_widgets):
+                # Restaurar color original
+                if self.selected_admin_row % 2 == 0:
+                    original_color = ("gray90", "gray25")
+                else:
+                    original_color = ("white", "gray20")
+
+                # Color especial para columna ID
+                if col_idx == 0:
+                    if self.selected_admin_row % 2 == 0:
+                        original_color = ("gray85", "gray30")
+                    else:
+                        original_color = ("gray95", "gray25")
+
+                widget.configure(fg_color=original_color)
+
+        # Seleccionar nueva fila
+        if row_idx == self.selected_admin_row:
+            # Si se hace clic en la misma fila, deseleccionar
+            self.selected_admin_row = None
+            print("Admin row deselected")
+        else:
+            self.selected_admin_row = row_idx
+            # Resaltar la fila seleccionada
+            selected_widgets = self.admin_row_widgets[row_idx]
+            for widget in selected_widgets:
+                widget.configure(fg_color=(COLORS["accent"][0], COLORS["accent"][1]))
+
+            # Obtener y mostrar el ID del admin seleccionado
+            selected_admin_id = self._get_selected_admin_id()
+            selected_admin_username = self.admin_data[row_idx][1]
+            print(
+                f"Admin row selected: {row_idx}, ID: {selected_admin_id}, "
+                f"Username: {selected_admin_username}"
+            )
+
+    def _get_selected_admin_id(self):
+        """Obtener el ID del admin seleccionado"""
+        if self.selected_admin_row is not None and self.selected_admin_row < len(self.admin_data):
+            return self.admin_data[self.selected_admin_row][0]  # Primera columna es el ID
+        return None
 
     def _show_trainers_table(self):
         # Clear previous content
