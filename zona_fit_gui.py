@@ -21,7 +21,7 @@ COLORS = {
 class DataTable(ctk.CTkFrame):
     """Reusable data table component with fixed headers and scrollable content"""
 
-    def __init__(self, master, headers, data, column_weights=None, on_row_select=None, **kwargs):
+    def __init__(self, master, headers, data, column_weights=None, table_name=None, **kwargs):
         super().__init__(master, fg_color=("white", "gray17"), **kwargs)
 
         # Validations
@@ -31,10 +31,10 @@ class DataTable(ctk.CTkFrame):
         self.headers = headers
         self.data = data
         self.column_weights = column_weights or [1] * len(headers)
-        self.on_row_select = on_row_select
+        self.table_name = table_name or "Unknown"
 
-        # Selection tracking
-        self.selected_row = None
+        # Selection tracking - optimized with tuple (table_name, item_id)
+        self.selection = None  # ("table_name", "item_id") or None for deselection
         self.row_widgets = {}
 
         # Configure grid
@@ -53,7 +53,7 @@ class DataTable(ctk.CTkFrame):
             raise ValueError(f"Data columns ({len(data[0])}) must match headers ({len(headers)})")
 
         if column_weights and len(column_weights) != len(headers):
-            raise ValueError(f"Column weights ({len(column_weights)}) must match headers ({len(headers)})")
+            raise ValueError("Column weights must match headers")
 
         # Validate all data rows have same number of columns
         for i, row in enumerate(data):
@@ -78,19 +78,20 @@ class DataTable(ctk.CTkFrame):
                 header_frame,
                 text=header,
                 font=ctk.CTkFont(size=14, weight="bold"),
-                fg_color=header_colors[col_idx] if col_idx < len(header_colors) else ("gray80", "gray30"),
+                fg_color=(
+                    header_colors[col_idx]
+                    if col_idx < len(header_colors)
+                    else ("gray80", "gray30")
+                ),
                 corner_radius=6,
                 height=35
             )
             header_label.grid(row=0, column=col_idx, sticky="ew", padx=2, pady=2)
 
-        # Scrollable content frame
         self.scrollable_frame = ctk.CTkScrollableFrame(
             self,
             fg_color=("gray95", "gray20"),
             corner_radius=6,
-            scrollbar_button_color=("gray70", "gray55"),
-            scrollbar_button_hover_color=("gray60", "gray40"),
         )
         self.scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
 
@@ -141,28 +142,76 @@ class DataTable(ctk.CTkFrame):
                 self.row_widgets[row_idx].append(cell_label)
 
     def _select_row(self, row_idx):
-        """Select a row and highlight it visually"""
-        # Deselect previous row
-        if self.selected_row is not None and self.selected_row in self.row_widgets:
-            self._restore_row_colors(self.selected_row)
+        """Universal row selection handler - optimized with tuple storage"""
+        # Get current selection info
+        current_selection = self._get_row_from_selection()
+
+        # Deselect previous row if exists
+        if current_selection is not None:
+            self._restore_row_colors(current_selection)
 
         # Select new row
-        if row_idx == self.selected_row:
+        if row_idx == current_selection:
             # Deselect if clicking same row
-            self.selected_row = None
-            if self.on_row_select:
-                self.on_row_select(None, None)
+            self.selection = None
+            print(f"{self.table_name} row deselected")
         else:
-            self.selected_row = row_idx
+            # Store selection as optimized tuple (table, id)
+            item_id = str(self.data[row_idx][0])
+            self.selection = (self.table_name, item_id)
+
             # Highlight selected row
             selected_widgets = self.row_widgets[row_idx]
             for widget in selected_widgets:
-                widget.configure(fg_color=(COLORS["accent"][0], COLORS["accent"][1]))
+                widget.configure(fg_color=COLORS["accent"])
 
-            # Call callback with selected data
-            if self.on_row_select:
-                selected_data = self.data[row_idx]
-                self.on_row_select(row_idx, selected_data)
+            # Print selection info using tuple elements
+            table_name, selected_id = self.selection
+            print(f"{table_name} selected: ID={selected_id}")
+
+    def _get_row_from_selection(self):
+        """Get row index from current selection tuple - used internally"""
+        if not self.selection:
+            return None
+
+        _, selected_id = self.selection
+        # Find row index by matching ID (first column)
+        for idx, row in enumerate(self.data):
+            if str(row[0]) == selected_id:
+                return idx
+        return None
+
+    def get_selection(self):
+        """Get current selection as tuple (table_name, item_id) or None"""
+        return self.selection
+
+    def get_selected_id(self):
+        """Get the ID of the currently selected item"""
+        return self.selection[1] if self.selection else None
+
+    def get_selected_table(self):
+        """Get the name of this table"""
+        return self.selection[0] if self.selection else self.table_name
+
+    def get_selection_info(self):
+        """Get complete selection information - backward compatibility"""
+        if not self.selection:
+            return {
+                "table_name": self.table_name,
+                "selected_id": None,
+                "selected_row": None,
+                "selected_data": None
+            }
+
+        table_name, selected_id = self.selection
+        selected_row = self._get_row_from_selection()
+
+        return {
+            "table_name": table_name,
+            "selected_id": selected_id,
+            "selected_row": selected_row,
+            "selected_data": self.data[selected_row] if selected_row is not None else None
+        }
 
     def _restore_row_colors(self, row_idx):
         """Restore original colors for a row"""
@@ -184,13 +233,17 @@ class DataTable(ctk.CTkFrame):
         """Update table data and refresh display"""
         self._validate_inputs(self.headers, new_data, self.column_weights)
         self.data = new_data
-        self.selected_row = None
+        self.selection = None  # Clear selection with optimized tuple approach
         self._populate_data()
 
     def get_selected_data(self):
-        """Get the currently selected row data"""
-        if self.selected_row is not None and self.selected_row < len(self.data):
-            return self.data[self.selected_row]
+        """Get the currently selected row data - computed when needed"""
+        if not self.selection:
+            return None
+
+        selected_row = self._get_row_from_selection()
+        if selected_row is not None and selected_row < len(self.data):
+            return self.data[selected_row]
         return None
 
 
@@ -588,7 +641,7 @@ class DashboardFrame(ctk.CTkFrame):
             headers=["ID", "Username", "Role", "Created At"],
             data=admins_data,
             column_weights=[1, 3, 2, 2],  # ID narrow, Username expandable, Role medium, Date medium
-            on_row_select=self._on_admin_selected
+            table_name="Admins"
         )
         self.admin_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
 
@@ -623,13 +676,6 @@ class DashboardFrame(ctk.CTkFrame):
 
         return formatted_data
 
-    def _on_admin_selected(self, row_idx, row_data):
-        """Handle admin row selection"""
-        if row_data:
-            print(f"Admin selected: ID={row_data[0]}, Username={row_data[1]}")
-        else:
-            print("Admin deselected")
-
     def _show_trainers_table(self):
         # Clear previous content
         for widget in self.content_container.winfo_children():
@@ -660,16 +706,9 @@ class DashboardFrame(ctk.CTkFrame):
             headers=["ID", "Name", "Position", "Start Date"],
             data=trainers_data,
             column_weights=[1, 3, 2, 2],  # Same structure as admin table
-            on_row_select=self._on_trainer_selected
+            table_name="Trainers"
         )
         self.trainer_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
-
-    def _on_trainer_selected(self, row_idx, row_data):
-        """Handle trainer row selection"""
-        if row_data:
-            print(f"Trainer selected: ID={row_data[0]}, Name={row_data[1]}")
-        else:
-            print("Trainer deselected")
 
     def _show_users_table(self):
         # Clear previous content
@@ -702,16 +741,9 @@ class DashboardFrame(ctk.CTkFrame):
             headers=["ID", "Name", "Membership", "Status", "Join Date"],
             data=users_data,
             column_weights=[1, 3, 2, 2, 2],  # 5 columns with different weights
-            on_row_select=self._on_user_selected
+            table_name="Users"
         )
         self.user_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
-
-    def _on_user_selected(self, row_idx, row_data):
-        """Handle user row selection"""
-        if row_data:
-            print(f"User selected: ID={row_data[0]}, Name={row_data[1]}, Status={row_data[3]}")
-        else:
-            print("User deselected")
 
     def _show_user_configuration(self, username):
         # Clear previous content
