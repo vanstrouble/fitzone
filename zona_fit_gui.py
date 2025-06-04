@@ -560,9 +560,9 @@ class DashboardFrame(ctk.CTkFrame):
             corner_radius=8,  # Slightly rounded corners
             fg_color=("white", "gray17"),  # Light/dark background for the content
         )
-        self.content_container.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        self.content_container.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
         self.content_container.grid_columnconfigure(0, weight=1)
-        self.content_container.grid_rowconfigure(0, weight=1)
+        self.content_container.grid_rowconfigure(1, weight=1)  # Make the table row expandable
 
     def _show_default_content(self):
         default_section = (
@@ -610,7 +610,7 @@ class DashboardFrame(ctk.CTkFrame):
 
         # Header section with title and description
         header_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 0))
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
         header_frame.grid_columnconfigure(0, weight=1)
 
         # Title
@@ -620,7 +620,7 @@ class DashboardFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=24, weight="bold"),
             anchor="w"
         )
-        title_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
+        title_label.grid(row=0, column=0, sticky="w", pady=(0, 3))
 
         # Description
         description_label = ctk.CTkLabel(
@@ -630,7 +630,7 @@ class DashboardFrame(ctk.CTkFrame):
             text_color=COLORS["text_secondary"],
             anchor="w"
         )
-        description_label.grid(row=1, column=0, sticky="w", pady=(0, 15))
+        description_label.grid(row=1, column=0, sticky="w")
 
         # Get admin data and format it
         admins_data = self._get_formatted_admin_data()
@@ -643,7 +643,7 @@ class DashboardFrame(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2],  # ID narrow, Username expandable, Role medium, Date medium
             table_name="Admins"
         )
-        self.admin_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        self.admin_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(5, 15))
 
     def _get_formatted_admin_data(self):
         """Get and format admin data for the table"""
