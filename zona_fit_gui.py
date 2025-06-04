@@ -18,6 +18,182 @@ COLORS = {
 }
 
 
+class DataTable(ctk.CTkFrame):
+    """Reusable data table component with fixed headers and scrollable content"""
+
+    def __init__(self, master, headers, data, column_weights=None, on_row_select=None, **kwargs):
+        super().__init__(master, fg_color=("white", "gray17"), **kwargs)
+
+        # Validations
+        self._validate_inputs(headers, data, column_weights)
+
+        # Store parameters
+        self.headers = headers
+        self.data = data
+        self.column_weights = column_weights or [1] * len(headers)
+        self.on_row_select = on_row_select
+
+        # Selection tracking
+        self.selected_row = None
+        self.row_widgets = {}
+
+        # Configure grid
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        # Create table components
+        self._create_table()
+
+    def _validate_inputs(self, headers, data, column_weights):
+        """Validate input parameters"""
+        if not headers:
+            raise ValueError("Headers cannot be empty")
+
+        if data and len(data[0]) != len(headers):
+            raise ValueError(f"Data columns ({len(data[0])}) must match headers ({len(headers)})")
+
+        if column_weights and len(column_weights) != len(headers):
+            raise ValueError(f"Column weights ({len(column_weights)}) must match headers ({len(headers)})")
+
+        # Validate all data rows have same number of columns
+        for i, row in enumerate(data):
+            if len(row) != len(headers):
+                raise ValueError(f"Row {i} has {len(row)} columns, expected {len(headers)}")
+
+    def _create_table(self):
+        """Create the table structure with fixed headers and scrollable content"""
+        # Fixed header frame
+        header_frame = ctk.CTkFrame(self, fg_color=("gray85", "gray25"))
+        header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 2))
+
+        # Configure header columns
+        for col_idx, weight in enumerate(self.column_weights):
+            minsize = 60 if weight == 1 else (120 if weight >= 3 else 100)
+            header_frame.grid_columnconfigure(col_idx, weight=weight, minsize=minsize)
+
+        # Create header labels
+        header_colors = [("gray75", "gray35")] + [("gray80", "gray30")] * (len(self.headers) - 1)
+        for col_idx, header in enumerate(self.headers):
+            header_label = ctk.CTkLabel(
+                header_frame,
+                text=header,
+                font=ctk.CTkFont(size=14, weight="bold"),
+                fg_color=header_colors[col_idx] if col_idx < len(header_colors) else ("gray80", "gray30"),
+                corner_radius=6,
+                height=35
+            )
+            header_label.grid(row=0, column=col_idx, sticky="ew", padx=2, pady=2)
+
+        # Scrollable content frame
+        self.scrollable_frame = ctk.CTkScrollableFrame(
+            self,
+            fg_color=("gray95", "gray20"),
+            corner_radius=6,
+            scrollbar_button_color=("gray70", "gray55"),
+            scrollbar_button_hover_color=("gray60", "gray40"),
+        )
+        self.scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
+
+        # Configure scrollable frame columns (same as header)
+        for col_idx, weight in enumerate(self.column_weights):
+            minsize = 60 if weight == 1 else (120 if weight >= 3 else 100)
+            self.scrollable_frame.grid_columnconfigure(col_idx, weight=weight, minsize=minsize)
+
+        # Populate data
+        self._populate_data()
+
+    def _populate_data(self):
+        """Populate the scrollable frame with data"""
+        # Clear existing data
+        for widget in self.scrollable_frame.winfo_children():
+            widget.destroy()
+        self.row_widgets.clear()
+
+        # Create data rows
+        for row_idx, row_data in enumerate(self.data):
+            self.row_widgets[row_idx] = []
+
+            for col_idx, cell_data in enumerate(row_data):
+                # Alternating row colors
+                if row_idx % 2 == 0:
+                    bg_color = ("gray90", "gray25")
+                else:
+                    bg_color = ("white", "gray20")
+
+                # Special color for first column (usually ID)
+                if col_idx == 0:
+                    bg_color = ("gray85", "gray30") if row_idx % 2 == 0 else ("gray95", "gray25")
+
+                cell_label = ctk.CTkLabel(
+                    self.scrollable_frame,
+                    text=str(cell_data),
+                    font=ctk.CTkFont(size=13),
+                    fg_color=bg_color,
+                    corner_radius=4,
+                    height=30
+                )
+                cell_label.grid(row=row_idx, column=col_idx, sticky="ew", padx=2, pady=1)
+
+                # Make cell clickable
+                cell_label.bind("<Button-1>", lambda e, idx=row_idx: self._select_row(idx))
+
+                # Store widget reference
+                self.row_widgets[row_idx].append(cell_label)
+
+    def _select_row(self, row_idx):
+        """Select a row and highlight it visually"""
+        # Deselect previous row
+        if self.selected_row is not None and self.selected_row in self.row_widgets:
+            self._restore_row_colors(self.selected_row)
+
+        # Select new row
+        if row_idx == self.selected_row:
+            # Deselect if clicking same row
+            self.selected_row = None
+            if self.on_row_select:
+                self.on_row_select(None, None)
+        else:
+            self.selected_row = row_idx
+            # Highlight selected row
+            selected_widgets = self.row_widgets[row_idx]
+            for widget in selected_widgets:
+                widget.configure(fg_color=(COLORS["accent"][0], COLORS["accent"][1]))
+
+            # Call callback with selected data
+            if self.on_row_select:
+                selected_data = self.data[row_idx]
+                self.on_row_select(row_idx, selected_data)
+
+    def _restore_row_colors(self, row_idx):
+        """Restore original colors for a row"""
+        old_row_widgets = self.row_widgets[row_idx]
+        for col_idx, widget in enumerate(old_row_widgets):
+            # Restore original color
+            if row_idx % 2 == 0:
+                original_color = ("gray90", "gray25")
+            else:
+                original_color = ("white", "gray20")
+
+            # Special color for first column
+            if col_idx == 0:
+                original_color = ("gray85", "gray30") if row_idx % 2 == 0 else ("gray95", "gray25")
+
+            widget.configure(fg_color=original_color)
+
+    def update_data(self, new_data):
+        """Update table data and refresh display"""
+        self._validate_inputs(self.headers, new_data, self.column_weights)
+        self.data = new_data
+        self.selected_row = None
+        self._populate_data()
+
+    def get_selected_data(self):
+        """Get the currently selected row data"""
+        if self.selected_row is not None and self.selected_row < len(self.data):
+            return self.data[self.selected_row]
+        return None
+
+
 class LoginFrame(ctk.CTkFrame):
     def __init__(self, master, on_login_success):
         super().__init__(master)
@@ -375,24 +551,52 @@ class DashboardFrame(ctk.CTkFrame):
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
-        # Configure grid for the content container
+        # Configure grid for the content container - table takes all remaining space
         self.content_container.grid_columnconfigure(0, weight=1)
-        self.content_container.grid_rowconfigure(1, weight=1)
+        self.content_container.grid_rowconfigure(1, weight=1)  # Table row expands
+
+        # Header section with title and description
+        header_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 0))
+        header_frame.grid_columnconfigure(0, weight=1)
 
         # Title
         title_label = ctk.CTkLabel(
-            self.content_container,
+            header_frame,
             text="Admin Management",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=24, weight="bold"),
+            anchor="w"
         )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+        title_label.grid(row=0, column=0, sticky="w", pady=(0, 5))
 
-        # Get admin data
+        # Description
+        description_label = ctk.CTkLabel(
+            header_frame,
+            text="View and manage system administrators",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_secondary"],
+            anchor="w"
+        )
+        description_label.grid(row=1, column=0, sticky="w", pady=(0, 15))
+
+        # Get admin data and format it
+        admins_data = self._get_formatted_admin_data()
+
+        # Create reusable table - fills all remaining space
+        self.admin_table = DataTable(
+            self.content_container,
+            headers=["ID", "Username", "Role", "Created At"],
+            data=admins_data,
+            column_weights=[1, 3, 2, 2],  # ID narrow, Username expandable, Role medium, Date medium
+            on_row_select=self._on_admin_selected
+        )
+        self.admin_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
+
+    def _get_formatted_admin_data(self):
+        """Get and format admin data for the table"""
         admins_data = get_all_admins()
+        formatted_data = []
 
-        # Convert admin objects to list format for table
-        self.admin_headers = ["ID", "Username", "Role", "Created At"]
-        self.admin_data = []
         for idx, admin in enumerate(admins_data):
             # Format created_at date if available
             created_at_str = "N/A"
@@ -410,223 +614,104 @@ class DashboardFrame(ctk.CTkFrame):
                     # It's a datetime object
                     created_at_str = admin.created_at.strftime("%d/%m/%Y")
 
-            self.admin_data.append([
+            formatted_data.append([
                 str(idx + 1),  # Use sequential ID starting from 1
                 admin.username,
                 admin.role.capitalize() if admin.role else "Admin",
                 created_at_str
             ])
 
-        # Variables for row selection
-        self.selected_admin_row = None
-        self.admin_row_widgets = {}
+        return formatted_data
 
-        # Create table with grid
-        self._create_admin_table()
-
-    def _create_admin_table(self):
-        # Frame contenedor principal para la tabla
-        main_table_frame = ctk.CTkFrame(
-            self.content_container,
-            fg_color=("white", "gray17")
-        )
-        main_table_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
-        main_table_frame.grid_columnconfigure(0, weight=1)
-        main_table_frame.grid_rowconfigure(1, weight=1)
-
-        # Frame fijo para headers (no se desplaza)
-        header_frame = ctk.CTkFrame(main_table_frame, fg_color=("gray85", "gray25"))
-        header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 2))
-
-        # CONFIGURACIÓN: Pesos diferentes para cada columna en header
-        header_frame.grid_columnconfigure(0, weight=1, minsize=60)   # ID - peso menor
-        header_frame.grid_columnconfigure(1, weight=3, minsize=120)  # Username - peso mayor
-        header_frame.grid_columnconfigure(2, weight=2, minsize=100)  # Role - peso medio
-        header_frame.grid_columnconfigure(3, weight=2, minsize=100)  # Created At - peso medio
-
-        # Crear headers fijos
-        header_colors = [
-            ("gray75", "gray35"),
-            ("gray80", "gray30"),
-            ("gray80", "gray30"),
-            ("gray80", "gray30")
-        ]
-        for col_idx, header in enumerate(self.admin_headers):
-            header_label = ctk.CTkLabel(
-                header_frame,
-                text=header,
-                font=ctk.CTkFont(size=14, weight="bold"),
-                fg_color=header_colors[col_idx],
-                corner_radius=6,
-                height=35
-            )
-            header_label.grid(row=0, column=col_idx, sticky="ew", padx=2, pady=2)
-
-        # Frame scrollable para las filas de datos
-        scrollable_frame = ctk.CTkScrollableFrame(
-            main_table_frame,
-            fg_color=("gray95", "gray20"),
-            corner_radius=6,
-            scrollbar_button_color=("gray70", "gray55"),  # macOS-style scrollbar color
-            scrollbar_button_hover_color=("gray60", "gray40"),  # Darker on hover
-        )
-        scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
-
-        # IMPORTANTE: Configurar columnas del scrollable frame con mismos pesos que header
-        scrollable_frame.grid_columnconfigure(0, weight=1, minsize=60)   # ID - peso menor
-        scrollable_frame.grid_columnconfigure(1, weight=3, minsize=120)  # Username - peso mayor
-        scrollable_frame.grid_columnconfigure(2, weight=2, minsize=100)  # Role - peso medio
-        scrollable_frame.grid_columnconfigure(3, weight=2, minsize=100)  # Created At - peso medio
-
-        # Crear filas de datos en el frame scrollable
-        for row_idx, row_data in enumerate(self.admin_data):
-            # Almacenar widgets de la fila para selección
-            self.admin_row_widgets[row_idx] = []
-
-            for col_idx, cell_data in enumerate(row_data):
-                # Alternar colores de fila
-                if row_idx % 2 == 0:
-                    bg_color = ("gray90", "gray25")
-                else:
-                    bg_color = ("white", "gray20")
-
-                # Color especial para columna ID
-                if col_idx == 0:  # Columna ID
-                    bg_color = ("gray85", "gray30") if row_idx % 2 == 0 else ("gray95", "gray25")
-
-                cell_label = ctk.CTkLabel(
-                    scrollable_frame,
-                    text=str(cell_data),
-                    font=ctk.CTkFont(size=13),
-                    fg_color=bg_color,
-                    corner_radius=4,
-                    height=30
-                )
-                cell_label.grid(row=row_idx, column=col_idx, sticky="ew", padx=2, pady=1)
-
-                # Hacer la celda clickeable para seleccionar la fila
-                cell_label.bind("<Button-1>", lambda e, idx=row_idx: self._select_admin_row(idx))
-
-                # Almacenar referencia del widget para cambio de color
-                self.admin_row_widgets[row_idx].append(cell_label)
-
-        # Información de configuración
-        config_frame = ctk.CTkFrame(
-            self.content_container,
-            fg_color=("gray95", "gray25")
-        )
-        config_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 20))
-
-        config_title = ctk.CTkLabel(
-            config_frame,
-            text="Table Configuration:",
-            font=ctk.CTkFont(size=12, weight="bold")
-        )
-        config_title.pack(pady=(10, 5))
-
-        config_details = ctk.CTkLabel(
-            config_frame,
-            text="• ID: weight=1, minsize=60px (narrow)\n" +
-                 "• Username: weight=3, minsize=120px (expandable)\n" +
-                 "• Role: weight=2, minsize=100px (medium)\n" +
-                 "• Created At: weight=2, minsize=100px (medium)",
-            font=ctk.CTkFont(size=11),
-            text_color=COLORS["text_secondary"],
-            justify="left"
-        )
-        config_details.pack(pady=(0, 10))
-
-    def _select_admin_row(self, row_idx):
-        """Seleccionar una fila de admin y resaltar visualmente"""
-        # Deseleccionar fila anterior si existe
-        if (self.selected_admin_row is not None and
-                self.selected_admin_row in self.admin_row_widgets):
-            old_row_widgets = self.admin_row_widgets[self.selected_admin_row]
-            for col_idx, widget in enumerate(old_row_widgets):
-                # Restaurar color original
-                if self.selected_admin_row % 2 == 0:
-                    original_color = ("gray90", "gray25")
-                else:
-                    original_color = ("white", "gray20")
-
-                # Color especial para columna ID
-                if col_idx == 0:
-                    if self.selected_admin_row % 2 == 0:
-                        original_color = ("gray85", "gray30")
-                    else:
-                        original_color = ("gray95", "gray25")
-
-                widget.configure(fg_color=original_color)
-
-        # Seleccionar nueva fila
-        if row_idx == self.selected_admin_row:
-            # Si se hace clic en la misma fila, deseleccionar
-            self.selected_admin_row = None
-            print("Admin row deselected")
+    def _on_admin_selected(self, row_idx, row_data):
+        """Handle admin row selection"""
+        if row_data:
+            print(f"Admin selected: ID={row_data[0]}, Username={row_data[1]}")
         else:
-            self.selected_admin_row = row_idx
-            # Resaltar la fila seleccionada
-            selected_widgets = self.admin_row_widgets[row_idx]
-            for widget in selected_widgets:
-                widget.configure(fg_color=(COLORS["accent"][0], COLORS["accent"][1]))
-
-            # Obtener y mostrar el ID del admin seleccionado
-            selected_admin_id = self._get_selected_admin_id()
-            selected_admin_username = self.admin_data[row_idx][1]
-            print(
-                f"Admin row selected: {row_idx}, ID: {selected_admin_id}, "
-                f"Username: {selected_admin_username}"
-            )
-
-    def _get_selected_admin_id(self):
-        """Obtener el ID del admin seleccionado"""
-        if self.selected_admin_row is not None and self.selected_admin_row < len(self.admin_data):
-            return self.admin_data[self.selected_admin_row][0]  # Primera columna es el ID
-        return None
+            print("Admin deselected")
 
     def _show_trainers_table(self):
         # Clear previous content
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
-        # Create a title
+        # Configure grid for the content container
+        self.content_container.grid_columnconfigure(0, weight=1)
+        self.content_container.grid_rowconfigure(1, weight=1)
+
+        # Title
         title_label = ctk.CTkLabel(
             self.content_container,
-            text="Trainers",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            text="Trainer Management",
+            font=ctk.CTkFont(size=24, weight="bold")
         )
-        title_label.grid(row=0, column=0, padx=20, pady=20)
+        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
 
-        # Placeholder content
-        content_label = ctk.CTkLabel(
+        # Placeholder data for trainers (this would come from your database)
+        trainers_data = [
+            ["1", "John Doe", "Senior Trainer", "15/01/2023"],
+            ["2", "Jane Smith", "Fitness Coach", "20/03/2023"],
+            ["3", "Mike Wilson", "Personal Trainer", "10/06/2023"],
+        ]
+
+        # Create reusable table
+        self.trainer_table = DataTable(
             self.content_container,
-            text="Trainers content will be implemented here",
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_secondary"],
+            headers=["ID", "Name", "Position", "Start Date"],
+            data=trainers_data,
+            column_weights=[1, 3, 2, 2],  # Same structure as admin table
+            on_row_select=self._on_trainer_selected
         )
-        content_label.grid(row=1, column=0, padx=20, pady=20)
+        self.trainer_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
+
+    def _on_trainer_selected(self, row_idx, row_data):
+        """Handle trainer row selection"""
+        if row_data:
+            print(f"Trainer selected: ID={row_data[0]}, Name={row_data[1]}")
+        else:
+            print("Trainer deselected")
 
     def _show_users_table(self):
         # Clear previous content
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
-        # Create a title
+        # Configure grid for the content container
+        self.content_container.grid_columnconfigure(0, weight=1)
+        self.content_container.grid_rowconfigure(1, weight=1)
+
+        # Title
         title_label = ctk.CTkLabel(
             self.content_container,
-            text="Gym Users",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            text="Member Management",
+            font=ctk.CTkFont(size=24, weight="bold")
         )
-        title_label.grid(row=0, column=0, padx=20, pady=20)
+        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
 
-        # Placeholder content
-        content_label = ctk.CTkLabel(
+        # Placeholder data for users (this would come from your database)
+        users_data = [
+            ["1", "Alice Johnson", "Premium", "Active", "01/02/2024"],
+            ["2", "Bob Martinez", "Basic", "Active", "15/02/2024"],
+            ["3", "Carol Davis", "Premium", "Suspended", "20/01/2024"],
+            ["4", "David Brown", "Basic", "Active", "05/03/2024"],
+        ]
+
+        # Create reusable table
+        self.user_table = DataTable(
             self.content_container,
-            text="Users content will be implemented here",
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_secondary"],
+            headers=["ID", "Name", "Membership", "Status", "Join Date"],
+            data=users_data,
+            column_weights=[1, 3, 2, 2, 2],  # 5 columns with different weights
+            on_row_select=self._on_user_selected
         )
-        content_label.grid(row=1, column=0, padx=20, pady=20)
+        self.user_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
+
+    def _on_user_selected(self, row_idx, row_data):
+        """Handle user row selection"""
+        if row_data:
+            print(f"User selected: ID={row_data[0]}, Name={row_data[1]}, Status={row_data[3]}")
+        else:
+            print("User deselected")
 
     def _show_user_configuration(self, username):
         # Clear previous content
