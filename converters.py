@@ -81,28 +81,43 @@ def db_to_person(person_db):
 
 def db_to_user(user_db):
     """Converts a UserDB object to a User object"""
-    return User(
-        unique_id=user_db.id,
+    user = User(
         name=user_db.name,
+        lastname=user_db.lastname,
         age=user_db.age,
         email=user_db.email,
         phone=user_db.phone,
         membership_type=user_db.membership_type,
+        created_at=user_db.created_at.strftime("%Y-%m-%d %H:00") if user_db.created_at else None,
+        renovation_date=(
+            user_db.renovation_date.strftime("%Y-%m-%d %H:00")
+            if user_db.renovation_date
+            else None
+        ),
     )
+    user.unique_id = user_db.id
+    return user
 
 
 def db_to_trainer(trainer_db):
     """Converts a TrainerDB object to a Trainer object"""
-    return Trainer(
-        unique_id=trainer_db.id,
+    trainer = Trainer(
         name=trainer_db.name,
+        lastname=trainer_db.lastname,
         age=trainer_db.age,
         email=trainer_db.email,
         phone=trainer_db.phone,
         specialty=trainer_db.specialty,
         start_time=trainer_db.start_time,
         end_time=trainer_db.end_time,
+        created_at=(
+            trainer_db.created_at.strftime("%Y-%m-%d %H:00")
+            if trainer_db.created_at
+            else None
+        ),
     )
+    trainer.unique_id = trainer_db.id
+    return trainer
 
 
 def db_to_admin(admin_db):
