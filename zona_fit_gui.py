@@ -4,6 +4,8 @@ from crud import (
     authenticate_admin,
     is_admin,
     get_all_admins,
+    get_all_trainers,
+    get_all_users,
 )
 
 # Global color palette
@@ -62,8 +64,8 @@ class DataTable(ctk.CTkFrame):
 
     def _create_table(self):
         """Create the table structure with fixed headers and scrollable content"""
-        # Fixed header frame
-        header_frame = ctk.CTkFrame(self, fg_color=("gray85", "gray25"))
+        # Fixed header frame with primary color gradient
+        header_frame = ctk.CTkFrame(self, fg_color=COLORS["primary"][1])
         header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 2))
 
         # Configure header columns
@@ -71,18 +73,20 @@ class DataTable(ctk.CTkFrame):
             minsize = 60 if weight == 1 else (120 if weight >= 3 else 100)
             header_frame.grid_columnconfigure(col_idx, weight=weight, minsize=minsize)
 
-        # Create header labels
-        header_colors = [("gray75", "gray35")] + [("gray80", "gray30")] * (len(self.headers) - 1)
+        # Create header labels with professional gradient
         for col_idx, header in enumerate(self.headers):
+            # Primary color for first column (ID), gradient for others
+            if col_idx == 0:
+                header_bg = COLORS["primary"][0]
+            else:
+                header_bg = COLORS["primary"][1]
+
             header_label = ctk.CTkLabel(
                 header_frame,
                 text=header,
                 font=ctk.CTkFont(size=14, weight="bold"),
-                fg_color=(
-                    header_colors[col_idx]
-                    if col_idx < len(header_colors)
-                    else ("gray80", "gray30")
-                ),
+                fg_color=header_bg,
+                text_color=("white", "white"),
                 corner_radius=6,
                 height=35
             )
@@ -90,7 +94,7 @@ class DataTable(ctk.CTkFrame):
 
         self.scrollable_frame = ctk.CTkScrollableFrame(
             self,
-            fg_color=("gray95", "gray20"),
+            fg_color=COLORS["neutral_fg"],
             corner_radius=6,
         )
         self.scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=0, pady=0)
@@ -115,15 +119,20 @@ class DataTable(ctk.CTkFrame):
             self.row_widgets[row_idx] = []
 
             for col_idx, cell_data in enumerate(row_data):
-                # Alternating row colors
+                # Professional alternating row colors using our color palette
                 if row_idx % 2 == 0:
-                    bg_color = ("gray90", "gray25")
+                    # Even rows - lighter neutral tones
+                    bg_color = ("white", COLORS["neutral_fg"][1])
                 else:
-                    bg_color = ("white", "gray20")
+                    # Odd rows - subtle contrast
+                    bg_color = (COLORS["neutral_bg"][0], "gray20")
 
-                # Special color for first column (usually ID)
+                # Special highlighting for first column (ID) with accent color hints
                 if col_idx == 0:
-                    bg_color = ("gray85", "gray30") if row_idx % 2 == 0 else ("gray95", "gray25")
+                    if row_idx % 2 == 0:
+                        bg_color = ("#f8f5ff", "gray28")  # Subtle primary tint
+                    else:
+                        bg_color = ("#f0ebf7", "gray23")  # Slightly darker primary tint
 
                 cell_label = ctk.CTkLabel(
                     self.scrollable_frame,
@@ -217,15 +226,20 @@ class DataTable(ctk.CTkFrame):
         """Restore original colors for a row"""
         old_row_widgets = self.row_widgets[row_idx]
         for col_idx, widget in enumerate(old_row_widgets):
-            # Restore original color
+            # Restore original color based on the same logic as _populate_data
             if row_idx % 2 == 0:
-                original_color = ("gray90", "gray25")
+                # Even rows - lighter neutral tones
+                original_color = ("white", COLORS["neutral_fg"][1])
             else:
-                original_color = ("white", "gray20")
+                # Odd rows - subtle contrast
+                original_color = (COLORS["neutral_bg"][0], "gray20")
 
-            # Special color for first column
+            # Special highlighting for first column (ID) with accent color hints
             if col_idx == 0:
-                original_color = ("gray85", "gray30") if row_idx % 2 == 0 else ("gray95", "gray25")
+                if row_idx % 2 == 0:
+                    original_color = ("#f8f5ff", "gray28")  # Subtle primary tint
+                else:
+                    original_color = ("#f0ebf7", "gray23")  # Slightly darker primary tint
 
             widget.configure(fg_color=original_color)
 
@@ -685,30 +699,79 @@ class DashboardFrame(ctk.CTkFrame):
         self.content_container.grid_columnconfigure(0, weight=1)
         self.content_container.grid_rowconfigure(1, weight=1)
 
+        # Header section with title and description
+        header_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
+        header_frame.grid_columnconfigure(0, weight=1)
+
         # Title
         title_label = ctk.CTkLabel(
-            self.content_container,
+            header_frame,
             text="Trainer Management",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=24, weight="bold"),
+            anchor="w"
         )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+        title_label.grid(row=0, column=0, sticky="w", pady=(0, 3))
 
-        # Placeholder data for trainers (this would come from your database)
-        trainers_data = [
-            ["1", "John Doe", "Senior Trainer", "15/01/2023"],
-            ["2", "Jane Smith", "Fitness Coach", "20/03/2023"],
-            ["3", "Mike Wilson", "Personal Trainer", "10/06/2023"],
-        ]
+        # Description
+        description_label = ctk.CTkLabel(
+            header_frame,
+            text="View and manage gym trainers",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_secondary"],
+            anchor="w"
+        )
+        description_label.grid(row=1, column=0, sticky="w")
+
+        # Get trainer data and format it
+        trainers_data = self._get_formatted_trainer_data()
 
         # Create reusable table
         self.trainer_table = DataTable(
             self.content_container,
-            headers=["ID", "Name", "Position", "Start Date"],
+            headers=["ID", "Name", "Specialty", "Schedule"],
             data=trainers_data,
             column_weights=[1, 3, 2, 2],  # Same structure as admin table
             table_name="Trainers"
         )
-        self.trainer_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
+        self.trainer_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(5, 15))
+
+    def _get_formatted_trainer_data(self):
+        """Get and format trainer data for the table"""
+        try:
+            trainers_data = get_all_trainers()
+            formatted_data = []
+
+            for idx, trainer in enumerate(trainers_data):
+                # Format start_time and end_time if available
+                schedule_str = "N/A"
+                if hasattr(trainer, 'start_time') and hasattr(trainer, 'end_time'):
+                    if trainer.start_time and trainer.end_time:
+                        schedule_str = f"{trainer.start_time} - {trainer.end_time}"
+                    elif trainer.start_time:
+                        schedule_str = f"From {trainer.start_time}"
+                    elif trainer.end_time:
+                        schedule_str = f"Until {trainer.end_time}"
+
+                # Get trainer name safely
+                trainer_name = getattr(trainer, 'name', 'Unknown')
+                trainer_lastname = getattr(trainer, 'lastname', '')
+                full_name = f"{trainer_name} {trainer_lastname}".strip()
+
+                # Get specialty safely
+                specialty = getattr(trainer, 'specialty', 'Trainer')
+
+                formatted_data.append([
+                    str(idx + 1),  # Use sequential ID starting from 1
+                    full_name,
+                    specialty,
+                    schedule_str
+                ])
+
+            return formatted_data
+        except Exception as e:
+            print(f"Error formatting trainer data: {e}")
+            return []
 
     def _show_users_table(self):
         # Clear previous content
@@ -719,21 +782,32 @@ class DashboardFrame(ctk.CTkFrame):
         self.content_container.grid_columnconfigure(0, weight=1)
         self.content_container.grid_rowconfigure(1, weight=1)
 
+        # Header section with title and description
+        header_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
+        header_frame.grid_columnconfigure(0, weight=1)
+
         # Title
         title_label = ctk.CTkLabel(
-            self.content_container,
+            header_frame,
             text="Member Management",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=24, weight="bold"),
+            anchor="w"
         )
-        title_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+        title_label.grid(row=0, column=0, sticky="w", pady=(0, 3))
 
-        # Placeholder data for users (this would come from your database)
-        users_data = [
-            ["1", "Alice Johnson", "Premium", "Active", "01/02/2024"],
-            ["2", "Bob Martinez", "Basic", "Active", "15/02/2024"],
-            ["3", "Carol Davis", "Premium", "Suspended", "20/01/2024"],
-            ["4", "David Brown", "Basic", "Active", "05/03/2024"],
-        ]
+        # Description
+        description_label = ctk.CTkLabel(
+            header_frame,
+            text="View and manage gym members",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_secondary"],
+            anchor="w"
+        )
+        description_label.grid(row=1, column=0, sticky="w")
+
+        # Get user data and format it
+        users_data = self._get_formatted_user_data()
 
         # Create reusable table
         self.user_table = DataTable(
@@ -743,7 +817,52 @@ class DashboardFrame(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2, 2],  # 5 columns with different weights
             table_name="Users"
         )
-        self.user_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
+        self.user_table.grid(row=1, column=0, sticky="nsew", padx=20, pady=(5, 15))
+
+    def _get_formatted_user_data(self):
+        """Get and format user data for the table"""
+        try:
+            users_data = get_all_users()
+            formatted_data = []
+
+            for idx, user in enumerate(users_data):
+                # Format membership type
+                membership_type = getattr(user, 'membership_type', 'Basic')
+
+                # Format status (assuming active by default if not specified)
+                status = "Active"  # Could be extended if status field exists in user model
+
+                # Format join date (created_at)
+                join_date_str = "N/A"
+                if hasattr(user, 'created_at') and user.created_at:
+                    from datetime import datetime
+                    if isinstance(user.created_at, str):
+                        try:
+                            date_part = user.created_at.split(' ')[0]
+                            dt = datetime.strptime(date_part, "%Y-%m-%d")
+                            join_date_str = dt.strftime("%d/%m/%Y")
+                        except (ValueError, IndexError):
+                            join_date_str = str(user.created_at)
+                    else:
+                        join_date_str = user.created_at.strftime("%d/%m/%Y")
+
+                # Get user name safely
+                user_name = getattr(user, 'name', 'Unknown')
+                user_lastname = getattr(user, 'lastname', '')
+                full_name = f"{user_name} {user_lastname}".strip()
+
+                formatted_data.append([
+                    str(idx + 1),  # Use sequential ID starting from 1
+                    full_name,
+                    membership_type.capitalize(),
+                    status,
+                    join_date_str
+                ])
+
+            return formatted_data
+        except Exception as e:
+            print(f"Error formatting user data: {e}")
+            return []
 
     def _show_user_configuration(self, username):
         # Clear previous content
