@@ -79,6 +79,8 @@ class Sidebar(ctk.CTkFrame):
         """Handle when the user clicks on their profile avatar"""
         # Call the parent's content change method with the specific configuration section
         self.on_section_change(f"Configuration {self.current_admin.username}")
+        # Update active section to show it's selected
+        self.set_active_section("Configuration")
 
     def _create_navigation_buttons(self, current_admin):
         next_button_row = 1

@@ -2,6 +2,7 @@ import customtkinter as ctk
 from controllers.crud import is_admin, get_all_admins, get_all_trainers, get_all_users
 from views.sidebar import Sidebar
 from views.data_table import DataTable
+from views.admin_config import AdminConfigFrame
 from views.colors import COLORS
 
 
@@ -360,12 +361,47 @@ class DashboardFrame(ctk.CTkFrame):
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
-        # Create a title
-        title_label = ctk.CTkLabel(
-            self.content_container,
-            text=f"User Configuration: {username}",
-            font=ctk.CTkFont(size=24, weight="bold"),
-        )
-        title_label.grid(row=0, column=0, padx=20, pady=20)
+        # Configure grid for the content container
+        self.content_container.grid_columnconfigure(0, weight=1)
+        self.content_container.grid_rowconfigure(1, weight=1)
 
-        # Configuration content would go here
+        # Header section with title and description (like other sections)
+        header_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
+        header_frame.grid_columnconfigure(0, weight=1)
+
+        # Title
+        title_label = ctk.CTkLabel(
+            header_frame,
+            text="⚙️ Admin Configuration",
+            font=ctk.CTkFont(size=24, weight="bold"),
+            anchor="w",
+        )
+        title_label.grid(row=0, column=0, sticky="w", pady=(0, 3))
+
+        # Description
+        description_label = ctk.CTkLabel(
+            header_frame,
+            text="Manage your admin profile settings",
+            font=ctk.CTkFont(size=14),
+            text_color=COLORS["text_secondary"],
+            anchor="w",
+        )
+        description_label.grid(row=1, column=0, sticky="w")
+
+        # Create admin configuration frame
+        if username == self.current_admin.username:
+            self.admin_config = AdminConfigFrame(
+                self.content_container,
+                current_admin=self.current_admin
+            )
+            self.admin_config.grid(row=1, column=0, sticky="nsew", padx=20, pady=(5, 15))
+        else:
+            # Fallback for other users (placeholder)
+            fallback_label = ctk.CTkLabel(
+                self.content_container,
+                text=f"Configuration not available for user: {username}",
+                font=ctk.CTkFont(size=16),
+                text_color=COLORS["text_secondary"],
+            )
+            fallback_label.grid(row=1, column=0, padx=20, pady=20)
