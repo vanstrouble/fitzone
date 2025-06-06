@@ -1,10 +1,10 @@
 import logging
 from sqlalchemy.exc import SQLAlchemyError
 from prettytable import PrettyTable
-from database import SessionLocal
-from models import DEFAULT_ADMIN, UserDB, TrainerDB, AdminDB, AdminRoles
-from admin import Admin
-from converters import (
+from controllers.database import SessionLocal
+from models.models import DEFAULT_ADMIN, UserDB, TrainerDB, AdminDB, AdminRoles
+from models.admin import Admin
+from controllers.converters import (
     admin_to_db,
     db_to_admin,
     db_to_user,

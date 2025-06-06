@@ -1,5 +1,5 @@
 import re
-from user import User
+from models.user import User
 
 
 class Trainer(User):

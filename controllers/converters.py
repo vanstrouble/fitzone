@@ -1,8 +1,8 @@
-from models import UserDB, TrainerDB, AdminDB
-from person import Person
-from user import User
-from trainer import Trainer
-from admin import Admin
+from models.models import UserDB, TrainerDB, AdminDB
+from models.person import Person
+from models.user import User
+from models.trainer import Trainer
+from models.admin import Admin
 from datetime import datetime
 
 

@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from crud import is_admin, get_all_admins, get_all_trainers, get_all_users
+from controllers.crud import is_admin, get_all_admins, get_all_trainers, get_all_users
 from views.sidebar import Sidebar
 from views.data_table import DataTable
 from views.colors import COLORS

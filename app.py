@@ -3,7 +3,7 @@ FitZone - Gym Management System
 Main application entry point
 """
 import customtkinter as ctk
-from crud import ensure_default_admin_exists
+from controllers.crud import ensure_default_admin_exists
 from views.login import LoginFrame
 from views.dashboard import DashboardFrame
 from views.colors import COLORS

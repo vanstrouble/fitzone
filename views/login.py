@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from crud import authenticate_admin
+from controllers.crud import authenticate_admin
 from views.colors import COLORS
 
 

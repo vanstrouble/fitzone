@@ -1,5 +1,5 @@
 import re
-from person import Person
+from models.person import Person
 from datetime import datetime, timedelta
 
 
