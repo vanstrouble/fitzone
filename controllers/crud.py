@@ -449,8 +449,15 @@ def update_admin(admin):
             logger.warning(f"Admin with ID {admin.unique_id} not found")
             return False
 
+        # Update username
         admin_db.username = admin.username
-        admin_db.password_hash = admin.password
+
+        # Only update password if a new one was provided
+        # admin.password will contain the new hashed password, or None if not changed
+        if hasattr(admin, '_password') and admin._password is not None:
+            admin_db.password_hash = admin._password
+
+        # Update role
         admin_db.role = admin.role
 
         session.commit()

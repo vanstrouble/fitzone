@@ -138,7 +138,7 @@ class DashboardFrame(ctk.CTkFrame):
 
         config_view = ViewWithHeaderView(
             self.content_container,
-            title="Account Settings"
+            title="Account Information"
         )
         config_view.pack(fill="both", expand=True)
 

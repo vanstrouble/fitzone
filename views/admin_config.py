@@ -38,106 +38,67 @@ class AdminConfigFrame(ctk.CTkFrame):
             self._create_button_section(form_frame)
 
     def _create_profile_section(self, parent, admin):
-        """Create profile info section (read-only) - Compact horizontal layout"""
-        # Profile info frame with horizontal layout (3 columns)
-        info_frame = ctk.CTkFrame(
-            parent,
-            fg_color=("gray92", "gray22"),
-            corner_radius=12,
-            border_width=1,
-            border_color=("gray85", "gray30"),
-            height=80
+        """Create profile info section (read-only) - Simple centered card"""
+        # Main container for centering
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 30))
+        container.grid_columnconfigure(0, weight=1)
+
+        # Profile card - centered and compact
+        profile_card = ctk.CTkFrame(
+            container,
+            fg_color=("white", "gray20"),
+            corner_radius=16,
+            border_width=2,
+            border_color=COLORS["primary"][0]
         )
-        info_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=(0, 25))
-        info_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        info_frame.grid_propagate(False)
+        profile_card.grid(row=0, column=0, padx=40, pady=0)
 
-        # Username info (left column)
-        username_container = ctk.CTkFrame(info_frame, fg_color="transparent")
-        username_container.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
-        username_container.grid_columnconfigure(0, weight=1)
+        # Card header with user info
+        header_frame = ctk.CTkFrame(profile_card, fg_color="transparent")
+        header_frame.pack(fill="x", padx=25, pady=(20, 15))
 
-        username_icon_label = ctk.CTkLabel(
-            username_container,
-            text="Username",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("gray50", "gray60"),
-            anchor="w"
-        )
-        username_icon_label.pack(anchor="w")
-
-        username_value = ctk.CTkLabel(
-            username_container,
+        # Main user info - centered
+        username_label = ctk.CTkLabel(
+            header_frame,
             text=admin.username,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            anchor="w"
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color=COLORS["primary"][0]
         )
-        username_value.pack(anchor="w", pady=(2, 0))
+        username_label.pack(anchor="center")
 
-        # Vertical separator 1
-        separator1 = ctk.CTkFrame(
-            info_frame,
-            width=1,
-            fg_color=("gray80", "gray35")
+        role_label = ctk.CTkLabel(
+            header_frame,
+            text=f"{str(admin.role).capitalize()} Account",
+            font=ctk.CTkFont(size=14),
+            text_color=("gray60", "gray40")
         )
-        separator1.grid(row=0, column=0, sticky="nse", padx=(0, 15))
+        role_label.pack(anchor="center", pady=(2, 0))
 
-        # Role info (center column)
-        role_container = ctk.CTkFrame(info_frame, fg_color="transparent")
-        role_container.grid(row=0, column=1, sticky="nsew", padx=15, pady=15)
-        role_container.grid_columnconfigure(0, weight=1)
-
-        role_icon_label = ctk.CTkLabel(
-            role_container,
-            text="Role",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("gray50", "gray60"),
-            anchor="w"
+        # Separator line
+        separator = ctk.CTkFrame(
+            profile_card,
+            height=1,
+            fg_color=("gray90", "gray30")
         )
-        role_icon_label.pack(anchor="w")
+        separator.pack(fill="x", padx=25, pady=(0, 15))
 
-        role_value = ctk.CTkLabel(
-            role_container,
-            text=str(admin.role).capitalize(),
-            font=ctk.CTkFont(size=16, weight="bold"),
-            anchor="w"
-        )
-        role_value.pack(anchor="w", pady=(2, 0))
-
-        # Vertical separator 2
-        separator2 = ctk.CTkFrame(
-            info_frame,
-            width=1,
-            fg_color=("gray80", "gray35")
-        )
-        separator2.grid(row=0, column=1, sticky="nse", padx=(0, 15))
-
-        # Created date info (right column)
-        date_container = ctk.CTkFrame(info_frame, fg_color="transparent")
-        date_container.grid(row=0, column=2, sticky="nsew", padx=15, pady=15)
-        date_container.grid_columnconfigure(0, weight=1)
-
-        date_icon_label = ctk.CTkLabel(
-            date_container,
-            text="Member Since",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("gray50", "gray60"),
-            anchor="w"
-        )
-        date_icon_label.pack(anchor="w")
+        # Additional info
+        info_frame = ctk.CTkFrame(profile_card, fg_color="transparent")
+        info_frame.pack(fill="x", padx=25, pady=(0, 20))
 
         # Format the creation date nicely
         created_text = self._format_creation_date(admin.created_at)
-        date_value = ctk.CTkLabel(
-            date_container,
-            text=created_text,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            anchor="w"
+        date_label = ctk.CTkLabel(
+            info_frame,
+            text=f"Member since {created_text}",
+            font=ctk.CTkFont(size=12),
+            text_color=("gray60", "gray40")
         )
-        date_value.pack(anchor="w", pady=(2, 0))
+        date_label.pack(anchor="center")
 
     def _create_editable_section(self, parent, admin):
-        """Create editable fields section (initially hidden)"""
+        """Create editable fields section (initially hidden) - Compact design"""
         # Editable container frame
         self.editable_frame = ctk.CTkFrame(parent, fg_color="transparent")
         self.editable_frame.grid(row=1, column=0, sticky="ew", padx=0, pady=(0, 20))
@@ -153,93 +114,104 @@ class AdminConfigFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=18, weight="bold"),
             anchor="w"
         )
-        edit_header.grid(row=0, column=0, sticky="w", padx=0, pady=(0, 10))
+        edit_header.grid(row=0, column=0, sticky="w", padx=0, pady=(0, 15))
 
-        # Username field
-        username_label = ctk.CTkLabel(
+        # Compact form container
+        form_container = ctk.CTkFrame(
             self.editable_frame,
-            text="Username",
-            font=ctk.CTkFont(size=14, weight="bold")
+            fg_color=("gray95", "gray20"),
+            corner_radius=8,
+            border_width=1,
+            border_color=("gray85", "gray30")
         )
-        username_label.grid(row=1, column=0, sticky="w", padx=0, pady=(10, 5))
+        form_container.grid(row=1, column=0, sticky="ew", padx=0, pady=0)
+        form_container.grid_columnconfigure(0, weight=1)
+
+        # Username field - more compact
+        username_label = ctk.CTkLabel(
+            form_container,
+            text="Username",
+            font=ctk.CTkFont(size=13, weight="bold")
+        )
+        username_label.grid(row=0, column=0, sticky="w", padx=15, pady=(15, 5))
 
         self.username_entry = ctk.CTkEntry(
-            self.editable_frame,
-            placeholder_text="Enter your username",
-            height=40,
-            corner_radius=8,
+            form_container,
+            height=35,
+            corner_radius=6,
             state="disabled",
-            font=ctk.CTkFont(size=14)
+            font=ctk.CTkFont(size=13)
         )
-        self.username_entry.grid(row=2, column=0, sticky="ew", padx=0, pady=(0, 15))
-        self.username_entry.insert(0, admin.username)
-
-        # Bind key events for username field
+        self.username_entry.grid(row=1, column=0, sticky="ew", padx=15, pady=(0, 10))
         self.username_entry.bind("<Command-BackSpace>", self.clear_username)
 
-        # Password field
+        # Password fields in a two-column layout for compactness
+        password_container = ctk.CTkFrame(form_container, fg_color="transparent")
+        password_container.grid(row=2, column=0, sticky="ew", padx=15, pady=(5, 15))
+        password_container.grid_columnconfigure((0, 1), weight=1)
+
+        # New Password (left column)
         password_label = ctk.CTkLabel(
-            self.editable_frame,
+            password_container,
             text="New Password",
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=ctk.CTkFont(size=13, weight="bold")
         )
-        password_label.grid(row=3, column=0, sticky="w", padx=0, pady=(10, 5))
+        password_label.grid(row=0, column=0, sticky="w", padx=(0, 10), pady=(0, 5))
 
         self.password_entry = ctk.CTkEntry(
-            self.editable_frame,
-            placeholder_text="Enter new password (optional)",
-            height=40,
-            corner_radius=8,
+            password_container,
+            height=35,
+            corner_radius=6,
             state="disabled",
             show="*",
-            font=ctk.CTkFont(size=14)
+            font=ctk.CTkFont(size=13)
         )
-        self.password_entry.grid(row=4, column=0, sticky="ew", padx=0, pady=(0, 15))
-
-        # Bind key events for password field
+        self.password_entry.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=0)
         self.password_entry.bind("<Command-BackSpace>", self.clear_password)
 
-        # Confirm Password field
+        # Confirm Password (right column)
         confirm_password_label = ctk.CTkLabel(
-            self.editable_frame,
-            text="Confirm New Password",
-            font=ctk.CTkFont(size=14, weight="bold")
+            password_container,
+            text="Confirm Password",
+            font=ctk.CTkFont(size=13, weight="bold")
         )
-        confirm_password_label.grid(row=5, column=0, sticky="w", padx=0, pady=(10, 5))
+        confirm_password_label.grid(row=0, column=1, sticky="w", padx=(5, 0), pady=(0, 5))
 
         self.confirm_password_entry = ctk.CTkEntry(
-            self.editable_frame,
-            placeholder_text="Confirm your new password",
-            height=40,
-            corner_radius=8,
+            password_container,
+            height=35,
+            corner_radius=6,
             state="disabled",
             show="*",
-            font=ctk.CTkFont(size=14)
+            font=ctk.CTkFont(size=13)
         )
-        self.confirm_password_entry.grid(row=6, column=0, sticky="ew", padx=0, pady=(0, 10))
-
-        # Bind key events for confirm password field
+        self.confirm_password_entry.grid(row=1, column=1, sticky="ew", padx=(5, 0), pady=0)
         self.confirm_password_entry.bind("<Command-BackSpace>", self.clear_confirm_password)
 
-        # Error label for validation messages
+        # Error label - more compact
         self.error_label = ctk.CTkLabel(
             self.editable_frame,
             text="",
             text_color=COLORS["danger"][0],
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
         )
-        self.error_label.grid(row=7, column=0, sticky="w", padx=0, pady=(0, 20))
+        self.error_label.grid(row=2, column=0, sticky="w", padx=0, pady=(8, 0))
 
     def _create_button_section(self, parent):
-        """Create button section"""
-        # Button frame
-        button_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        button_frame.grid(row=2, column=0, sticky="ew", padx=0, pady=(0, 0))
-        button_frame.grid_columnconfigure((0, 1), weight=1)
+        """Create button section - centered below card"""
+        # Main container for centering (same as profile card)
+        container = ctk.CTkFrame(parent, fg_color="transparent")
+        container.grid(row=2, column=0, sticky="ew", padx=0, pady=(0, 0))
+        container.grid_columnconfigure(0, weight=1)
+
+        # Button container with same width as profile card
+        button_container = ctk.CTkFrame(container, fg_color="transparent")
+        button_container.grid(row=0, column=0, padx=40, pady=0)  # Same padx as profile card
+        button_container.grid_columnconfigure((0, 1), weight=1)
 
         # Edit/Save button
         self.edit_button = ctk.CTkButton(
-            button_frame,
+            button_container,
             text="Edit Profile",
             command=self._toggle_edit_mode,
             height=45,
@@ -252,7 +224,7 @@ class AdminConfigFrame(ctk.CTkFrame):
 
         # Cancel button (initially hidden)
         self.cancel_button = ctk.CTkButton(
-            button_frame,
+            button_container,
             text="Cancel",
             command=self._cancel_edit,
             height=45,
@@ -283,6 +255,24 @@ class AdminConfigFrame(ctk.CTkFrame):
                 return created_at.strftime("%B %d, %Y")
         except Exception:
             return str(created_at)
+
+    def _refresh_profile_data(self):
+        """Refresh the profile section with updated data"""
+        # Get updated admin data
+        admin = get_admin(self.current_admin.username)
+        if admin:
+            # Find the existing profile card and destroy it
+            for widget in self.winfo_children():
+                if isinstance(widget, ctk.CTkFrame):
+                    # This is the form_frame
+                    for child in widget.winfo_children():
+                        if child.grid_info().get('row') == 0:  # Profile section is at row 0
+                            child.destroy()
+                            break
+
+                    # Recreate only the profile section
+                    self._create_profile_section(widget, admin)
+                    break
 
     def clear_username(self, event=None):
         """Clear the username entry field"""
@@ -358,8 +348,14 @@ class AdminConfigFrame(ctk.CTkFrame):
 
             # Frontend validation - username format (Vista responsibility)
             new_username = self.username_entry.get().strip()
-            if not self._validate_username(new_username):
-                return
+
+            # If username is empty, keep the current username
+            if not new_username:
+                new_username = self.current_admin.username
+            else:
+                # Validate only if user provided a new username
+                if not self._validate_username(new_username):
+                    return
 
             # Frontend validation - passwords match (Vista responsibility)
             new_password = self.password_entry.get()
@@ -404,6 +400,9 @@ class AdminConfigFrame(ctk.CTkFrame):
                 # Exit edit mode
                 self._exit_edit_mode()
 
+                # Refresh the profile section to show updated data
+                self._refresh_profile_data()
+
                 messagebox.showinfo("Success", "Data updated successfully")
             else:
                 messagebox.showerror("Error", "Error updating data")
@@ -415,15 +414,10 @@ class AdminConfigFrame(ctk.CTkFrame):
         # Clear error states when canceling
         self._clear_error_states()
 
-        # Restore original values from database
-        admin = get_admin(self.current_admin.username)
-
-        if admin:
-            self.username_entry.delete(0, "end")
-            self.username_entry.insert(0, admin.username)
-            # Clear password fields
-            self.password_entry.delete(0, "end")
-            self.confirm_password_entry.delete(0, "end")
+        # Clear all fields when canceling
+        self.username_entry.delete(0, "end")
+        self.password_entry.delete(0, "end")
+        self.confirm_password_entry.delete(0, "end")
 
         self._exit_edit_mode()
 
