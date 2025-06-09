@@ -11,7 +11,7 @@ class ViewWithHeaderView(ctk.CTkFrame):
     Reusable component that provides a consistent header for any view.
     """
 
-    def __init__(self, master, title, description):
+    def __init__(self, master, title, description=None):
         super().__init__(master, fg_color="transparent")
 
         self.title = title
@@ -21,7 +21,7 @@ class ViewWithHeaderView(ctk.CTkFrame):
         self._create_content_area()
 
     def _create_header(self):
-        """Creates the header with title and description"""
+        """Creates the header with title and optional description"""
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(15, 10))
 
@@ -31,16 +31,18 @@ class ViewWithHeaderView(ctk.CTkFrame):
             font=ctk.CTkFont(size=24, weight="bold"),
             anchor="w",
         )
-        title_label.pack(anchor="w", pady=(0, 3))
+        title_label.pack(anchor="w", pady=(0, 3) if self.description else (0, 0))
 
-        description_label = ctk.CTkLabel(
-            header_frame,
-            text=self.description,
-            font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_secondary"],
-            anchor="w",
-        )
-        description_label.pack(anchor="w")
+        # Only create description label if description is provided
+        if self.description:
+            description_label = ctk.CTkLabel(
+                header_frame,
+                text=self.description,
+                font=ctk.CTkFont(size=14),
+                text_color=COLORS["text_secondary"],
+                anchor="w",
+            )
+            description_label.pack(anchor="w")
 
     def _create_content_area(self):
         """Creates the content area where any widget can be added"""

@@ -138,8 +138,7 @@ class DashboardFrame(ctk.CTkFrame):
 
         config_view = ViewWithHeaderView(
             self.content_container,
-            title="⚙️ Admin Configuration",
-            description="Manage your admin profile settings"
+            title="⚙️ Account Settings"
         )
         config_view.pack(fill="both", expand=True)
 
