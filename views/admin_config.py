@@ -3,6 +3,7 @@ from controllers.crud import get_admin, update_admin
 from views.colors import COLORS
 from utils.validators import AdminValidator
 from utils.ui_styles import AdminConfigStyles
+from utils.ui_components import CircularBadge
 import tkinter.messagebox as messagebox
 from datetime import datetime
 
@@ -312,6 +313,34 @@ class AdminConfigFrame(ctk.CTkFrame):
                     self._create_profile_section(widget, admin)
                     break
 
+    def _show_notification_badge(self, success=True):
+        """Show a notification badge indicating success or error
+
+        Args:
+            success (bool): True for success, False for error
+        """
+        # Create a circular badge
+        badge = CircularBadge(
+            self,
+            size=60,
+            success=success,
+            duration=2000
+        )
+
+        # Get the coordinates of the edit button for better positioning
+        button_x = self.edit_button.winfo_rootx() + self.edit_button.winfo_width() // 2
+        button_y = self.edit_button.winfo_rooty() + self.edit_button.winfo_height() + 10
+
+        # Convert to widget coordinates
+        relative_x = button_x - self.winfo_rootx()
+        relative_y = button_y - self.winfo_rooty()
+
+        # Position the badge just below the edit button
+        badge.place(x=relative_x, y=relative_y, anchor="center")
+
+        # Show the badge and bring it to the front
+        badge.show()
+
     def _show_error(self, message, field_type="general"):
         """Display error message with visual feedback"""
         self.error_label.configure(text=message)
@@ -391,9 +420,11 @@ class AdminConfigFrame(ctk.CTkFrame):
             if update_admin(admin):
                 self._handle_successful_update(new_username)
             else:
+                self._show_notification_badge(success=False)
                 messagebox.showerror("Error", "Error updating data")
 
         except Exception as e:
+            self._show_notification_badge(success=False)
             messagebox.showerror("Error", f"Update error: {str(e)}")
 
     def _validate_inputs(self, username, password, confirm_password):
@@ -433,9 +464,15 @@ class AdminConfigFrame(ctk.CTkFrame):
         """Handle successful update"""
         self.current_admin.username = new_username
         self._clear_password_fields()
+
+        # First exit edit mode to hide the editing section
         self._exit_edit_mode()
+
+        # Then refresh profile data
         self._refresh_profile_data()
-        messagebox.showinfo("Success", "Data updated successfully")
+
+        # Now show success notification badge just below the edit button
+        self.after(100, lambda: self._show_notification_badge(success=True))
 
     def _clear_password_fields(self):
         """Clear password fields for security"""
