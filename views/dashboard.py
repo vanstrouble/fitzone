@@ -35,10 +35,12 @@ class DashboardFrame(ctk.CTkFrame):
         self._show_default_content()
 
     def _create_content_frame(self):
+        # Outer frame with no radius (fills the space)
         self.content_frame = ctk.CTkFrame(
             self,
             corner_radius=0,
             fg_color=COLORS["neutral_bg"],
+            border_width=0
         )
         self.content_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
         self.content_frame.grid_columnconfigure(0, weight=1)
@@ -46,10 +48,10 @@ class DashboardFrame(ctk.CTkFrame):
 
         self.content_container = ctk.CTkFrame(
             self.content_frame,
-            corner_radius=8,
+            # corner_radius=20,  # Very noticeable rounded corners
             fg_color=("white", "gray17"),
         )
-        self.content_container.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
+        self.content_container.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
         self.content_container.grid_columnconfigure(0, weight=1)
         self.content_container.grid_rowconfigure(0, weight=1)
 
@@ -96,7 +98,7 @@ class DashboardFrame(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2],
             table_name="Admins"
         )
-        self.admin_view.pack(fill="both", expand=True)
+        self.admin_view.pack(fill="both", expand=True, padx=10, pady=10)
 
     def _show_trainers_table(self):
         for widget in self.content_container.winfo_children():
@@ -113,7 +115,7 @@ class DashboardFrame(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2],
             table_name="Trainers"
         )
-        self.trainer_view.pack(fill="both", expand=True)
+        self.trainer_view.pack(fill="both", expand=True, padx=10, pady=10)
 
     def _show_users_table(self):
         for widget in self.content_container.winfo_children():
@@ -130,7 +132,7 @@ class DashboardFrame(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2, 2],
             table_name="Users"
         )
-        self.user_view.pack(fill="both", expand=True)
+        self.user_view.pack(fill="both", expand=True, padx=10, pady=10)
 
     def _show_user_configuration(self, username):
         for widget in self.content_container.winfo_children():
@@ -140,7 +142,8 @@ class DashboardFrame(ctk.CTkFrame):
             self.content_container,
             title="Account Information"
         )
-        config_view.pack(fill="both", expand=True)
+        # Add padding to prevent child from reaching container edges
+        config_view.pack(fill="both", expand=True, padx=10, pady=10)
 
         if username == self.current_admin.username:
             admin_config = AdminConfigFrame(

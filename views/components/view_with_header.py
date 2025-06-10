@@ -13,7 +13,8 @@ class ViewWithHeaderView(ctk.CTkFrame):
     """
 
     def __init__(self, master, title, description=None):
-        super().__init__(master, fg_color="transparent")
+        # Use transparent background to not interfere with parent's rounded corners
+        super().__init__(master, fg_color="transparent", corner_radius=0)
 
         self.title = title
         self.description = description
@@ -47,9 +48,12 @@ class ViewWithHeaderView(ctk.CTkFrame):
 
     def _create_content_area(self):
         """Creates the content area where any widget can be added"""
-        self.content_area = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_area.pack(fill="both", expand=True, padx=20, pady=(5, 15))
+        self.content_area = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
+        self.content_area.pack(fill="both", expand=True, padx=15, pady=(5, 15))
+        # Configure grid for content area
+        self.content_area.grid_columnconfigure(0, weight=1)
+        self.content_area.grid_rowconfigure(0, weight=1)
 
     def add_content(self, widget):
         """Allows adding content to the content area"""
-        widget.pack(fill="both", expand=True, in_=self.content_area)
+        widget.grid(row=0, column=0, sticky="nsew", in_=self.content_area)
