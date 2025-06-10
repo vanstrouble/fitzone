@@ -9,10 +9,11 @@ from datetime import datetime
 
 
 class AdminConfigFrame(ctk.CTkFrame):
-    def __init__(self, master, current_admin):
+    def __init__(self, master, current_admin, update_sidebar_callback=None):
         super().__init__(master, fg_color="transparent", corner_radius=0)
         self.current_admin = current_admin
         self.edit_mode = False
+        self.update_sidebar_callback = update_sidebar_callback
         self._configure_layout()
         self._create_form()
 
@@ -470,6 +471,10 @@ class AdminConfigFrame(ctk.CTkFrame):
 
         # Then refresh profile data
         self._refresh_profile_data()
+
+        # Update sidebar if callback is provided
+        if self.update_sidebar_callback:
+            self.update_sidebar_callback()
 
         # Now show success notification badge just below the edit button
         self.after(100, lambda: self._show_notification_badge(success=True))

@@ -55,12 +55,12 @@ class Sidebar(ctk.CTkFrame):
         avatar_button.grid(row=0, column=0, pady=(5, 0))
 
         # Username (in uppercase)
-        username_label = ctk.CTkLabel(
+        self.username_label = ctk.CTkLabel(  # Store reference for later updates
             profile_frame,
             text=self.current_admin.username.upper(),
             font=ctk.CTkFont(size=16, weight="bold"),
         )
-        username_label.grid(row=1, column=0, pady=(5, 0))
+        self.username_label.grid(row=1, column=0, pady=(5, 0))
 
         # Role as a subtle subtitle (not a button)
         role_label = ctk.CTkLabel(
@@ -157,3 +157,8 @@ class Sidebar(ctk.CTkFrame):
             font=ctk.CTkFont(size=13, weight="bold"),  # Bold for emphasis
         )
         sign_out_button.grid(row=5, column=0, padx=15, pady=(20, 15), sticky="ews")
+
+    def update_username(self):
+        """Update the username display in the sidebar based on current_admin"""
+        if hasattr(self, "username_label"):
+            self.username_label.configure(text=self.current_admin.username.upper())

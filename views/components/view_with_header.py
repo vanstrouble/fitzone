@@ -2,6 +2,7 @@
 Reusable component to display views with a header.
 Used for screens like settings that need a consistent header.
 """
+
 import customtkinter as ctk
 from views.colors import COLORS
 

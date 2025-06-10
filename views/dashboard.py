@@ -145,7 +145,8 @@ class DashboardFrame(ctk.CTkFrame):
         if username == self.current_admin.username:
             admin_config = AdminConfigFrame(
                 config_view.content_area,
-                current_admin=self.current_admin
+                current_admin=self.current_admin,
+                update_sidebar_callback=self.update_sidebar
             )
             config_view.add_content(admin_config)
         else:
@@ -156,3 +157,8 @@ class DashboardFrame(ctk.CTkFrame):
                 text_color=COLORS["text_secondary"],
             )
             config_view.add_content(fallback_label)
+
+    def update_sidebar(self):
+        """Update sidebar information after user profile changes"""
+        if hasattr(self, "sidebar"):
+            self.sidebar.update_username()

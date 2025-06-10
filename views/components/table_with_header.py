@@ -2,6 +2,7 @@
 Reusable component to display tables with a header.
 Applies the DRY (Don't Repeat Yourself) Principle - eliminates code duplication.
 """
+
 import customtkinter as ctk
 from views.data_table import DataTable
 from views.colors import COLORS
@@ -13,7 +14,9 @@ class TableWithHeaderView(ctk.CTkFrame):
     This eliminates code duplication in dashboard views.
     """
 
-    def __init__(self, master, title, description, headers, data, column_weights, table_name):
+    def __init__(
+        self, master, title, description, headers, data, column_weights, table_name
+    ):
         super().__init__(master, fg_color="transparent")
 
         # Store configuration
