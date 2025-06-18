@@ -114,7 +114,12 @@ class DashboardFrame(ctk.CTkFrame):
         from views.components.crud_buttons import CRUDButtons
         btn_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=(0, 15))
-        crud_buttons = CRUDButtons(btn_frame, table=self.admin_view.table)
+        crud_buttons = CRUDButtons(
+            btn_frame,
+            table=self.admin_view.table,
+            on_add=lambda: self._show_admin_form(),
+            on_update=lambda: self._show_admin_form(self.admin_view.table.get_selected_id())
+        )
         crud_buttons.pack(side="right")
 
     def _show_trainers_table(self):
@@ -196,3 +201,28 @@ class DashboardFrame(ctk.CTkFrame):
         """Update sidebar information after user profile changes"""
         if hasattr(self, "sidebar"):
             self.sidebar.update_username()
+
+    def _show_admin_form(self, admin_to_edit=None):
+        for widget in self.content_container.winfo_children():
+            widget.destroy()
+
+        from views.components.admin_form import AdminFormView
+
+        # Create the form
+        admin_form = AdminFormView(
+            self.content_container,
+            on_save=self._handle_admin_save,
+            on_cancel=self._handle_admin_cancel,
+            admin_to_edit=admin_to_edit
+        )
+        admin_form.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def _handle_admin_save(self, admin_data):
+        # Here you would call the controller to save the admin data
+        # For now, just print the data and return to the table
+        print("Saving admin:", admin_data)
+        self._show_admins_table()
+
+    def _handle_admin_cancel(self):
+        # Return to the admins table
+        self._show_admins_table()

@@ -3,9 +3,18 @@ from views.colors import COLORS
 
 
 class CRUDButtons(ctk.CTkFrame):
-    def __init__(self, master=None, table=None, **kwargs):
+    def __init__(self,
+                 master=None,
+                 table=None,
+                 on_add=None,
+                 on_update=None,
+                 on_delete=None,
+                 **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
         self.table = table
+        self.on_add = on_add
+        self.on_update = on_update
+        self.on_delete = on_delete
         self._create_buttons()
         self._update_buttons_visibility()
         if self.table is not None:
@@ -23,6 +32,7 @@ class CRUDButtons(ctk.CTkFrame):
             height=38,
             anchor="center",
             font=ctk.CTkFont(size=13, weight="bold"),
+            command=self._on_delete_click
         )
         self.btn_update = ctk.CTkButton(
             self,
@@ -34,6 +44,7 @@ class CRUDButtons(ctk.CTkFrame):
             height=38,
             anchor="center",
             font=ctk.CTkFont(size=13, weight="bold"),
+            command=self._on_update_click
         )
         self.btn_add = ctk.CTkButton(
             self,
@@ -45,6 +56,7 @@ class CRUDButtons(ctk.CTkFrame):
             height=38,
             anchor="center",
             font=ctk.CTkFont(size=13, weight="bold"),
+            command=self._on_add_click
         )
         # Solo empacamos Add por defecto, los otros se empacan según selección
         self.btn_add.pack(side="right", padx=8)
@@ -109,3 +121,21 @@ class CRUDButtons(ctk.CTkFrame):
             self._last_selection = current
             self._update_buttons_visibility()
         self.after(200, self._poll_selection)
+
+    def _on_add_click(self):
+        if self.on_add:
+            self.on_add()
+
+    def _on_update_click(self):
+        has_selection = (self.table and
+                         hasattr(self.table, 'get_selected_id') and
+                         self.table.get_selected_id() is not None)
+        if self.on_update and has_selection:
+            self.on_update()
+
+    def _on_delete_click(self):
+        has_selection = (self.table and
+                         hasattr(self.table, 'get_selected_id') and
+                         self.table.get_selected_id() is not None)
+        if self.on_delete and has_selection:
+            self.on_delete()
