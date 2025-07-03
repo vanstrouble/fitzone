@@ -1,48 +1,184 @@
 """
-Controlador para manejar la lógica del dashboard.
-Aplica el patrón MVC correctamente: el controlador maneja la lógica de negocio
-y la coordinación entre el modelo (datos) y la vista (UI).
+Controller to handle dashboard logic.
+Applies the MVC pattern correctly: the controller handles business logic
+and coordination between the model (data) and the view (UI).
 """
+
 from controllers.crud import is_admin
 from services.data_formatter import DataFormatter
+from typing import List, Dict, Any
+import difflib
 
 
 class DashboardController:
     """
-    Controlador que maneja la lógica del dashboard.
-    Separa la lógica de negocio de la vista, siguiendo el patrón MVC.
+    Controller that handles dashboard logic.
+    Separates business logic from the view, following the MVC pattern.
+    Implements smart caching to optimize queries and filtering.
     """
 
     def __init__(self):
-        # Inyección de dependencia del servicio de formateo
+        # Dependency injection of the formatting service
         self.data_formatter = DataFormatter()
+
+        # Cache system with intelligent invalidation
+        self._data_cache: Dict[str, List[List[Any]]] = {}
+        self._filter_cache: Dict[str, List[List[Any]]] = {}
+        self._cache_dirty: Dict[str, bool] = {
+            "admins": True,
+            "trainers": True,
+            "users": True,
+        }
+
+    def _fuzzy_match(self, text: str, query: str, threshold: float = 0.6) -> bool:
+        """
+        Fuzzy matching algorithm using difflib.
+        Returns True if similarity ratio >= threshold
+        """
+        if not query:
+            return True
+
+        text_lower = str(text).lower()
+        query_lower = query.lower()
+
+        # Exact substring match (highest priority)
+        if query_lower in text_lower:
+            return True
+
+        # Fuzzy match using sequence matching
+        similarity = difflib.SequenceMatcher(None, text_lower, query_lower).ratio()
+        return similarity >= threshold
+
+    def _advanced_search(self, data: List[List[Any]], query: str) -> List[List[Any]]:
+        """
+        Advanced search with multiple algorithms:
+        1. Exact match (highest priority)
+        2. Fuzzy match
+        3. Partial word match
+        """
+        if not query.strip():
+            return data
+
+        query = query.strip()
+        results = []
+
+        for row in data:
+            match_found = False
+
+            for cell in row:
+                cell_str = str(cell)
+
+                # Try different matching strategies
+                if (
+                    self._exact_match(cell_str, query)
+                    or self._fuzzy_match(cell_str, query, threshold=0.6)
+                    or self._partial_word_match(cell_str, query)
+                ):
+                    match_found = True
+                    break
+
+            if match_found:
+                results.append(row)
+
+        return results
+
+    def _exact_match(self, text: str, query: str) -> bool:
+        """Exact substring matching (case-insensitive)"""
+        return query.lower() in str(text).lower()
+
+    def _partial_word_match(self, text: str, query: str) -> bool:
+        """Match if query words are found in text"""
+        text_words = str(text).lower().split()
+        query_words = query.lower().split()
+
+        return any(
+            any(query_word in text_word for text_word in text_words)
+            for query_word in query_words
+        )
+
+    def _get_cached_data(self, table_name: str) -> List[List[Any]]:
+        """Get data from cache or fetch if cache is dirty"""
+        if (
+            self._cache_dirty.get(table_name, True)
+            or table_name not in self._data_cache
+        ):
+            # Cache is dirty or empty, fetch fresh data
+            if table_name == "admins":
+                self._data_cache[table_name] = (
+                    self.data_formatter.get_formatted_admin_data()
+                )
+            elif table_name == "trainers":
+                self._data_cache[table_name] = (
+                    self.data_formatter.get_formatted_trainer_data()
+                )
+            elif table_name == "users":
+                self._data_cache[table_name] = (
+                    self.data_formatter.get_formatted_user_data()
+                )
+
+            # Mark as clean and clear related filter cache
+            self._cache_dirty[table_name] = False
+            self._clear_filter_cache(table_name)
+
+        return self._data_cache[table_name]
+
+    def _clear_filter_cache(self, table_name: str):
+        """Clear filter cache for specific table"""
+        keys_to_remove = [
+            key for key in self._filter_cache.keys() if key.startswith(f"{table_name}_")
+        ]
+        for key in keys_to_remove:
+            del self._filter_cache[key]
+
+    def invalidate_cache(self, table_name: str):
+        """Invalidate cache for specific table (call after data changes)"""
+        self._cache_dirty[table_name] = True
+        self._clear_filter_cache(table_name)
+
+    def filter_data(self, table_name: str, query: str) -> List[List[Any]]:
+        """Filter data with advanced search algorithms and caching"""
+        if not query.strip():
+            return self._get_cached_data(table_name)
+
+        # Check filter cache
+        cache_key = f"{table_name}_{query.lower()}"
+        if cache_key in self._filter_cache:
+            return self._filter_cache[cache_key]
+
+        # Get original data and apply advanced search
+        original_data = self._get_cached_data(table_name)
+        filtered_data = self._advanced_search(original_data, query)
+
+        # Cache the filtered result
+        self._filter_cache[cache_key] = filtered_data
+        return filtered_data
 
     def get_admin_data(self):
         """
-        Obtiene datos de administradores formateados para la vista.
-        El controlador coordina entre el modelo (datos) y los servicios.
+        Gets formatted admin data for the view.
+        The controller coordinates between the model (data) and the services.
         """
-        return self.data_formatter.get_formatted_admin_data()
+        return self._get_cached_data("admins")
 
     def get_trainer_data(self):
-        """Obtiene datos de entrenadores formateados para la vista"""
-        return self.data_formatter.get_formatted_trainer_data()
+        """Gets formatted trainer data for the view"""
+        return self._get_cached_data("trainers")
 
     def get_user_data(self):
-        """Obtiene datos de usuarios formateados para la vista"""
-        return self.data_formatter.get_formatted_user_data()
+        """Gets formatted user data for the view"""
+        return self._get_cached_data("users")
 
     def get_default_section(self, current_admin):
         """
-        Determina qué sección mostrar por defecto según el tipo de usuario.
-        Lógica de negocio que no pertenece en la vista.
+        Determines which section to show by default according to the user type.
+        Business logic that does not belong in the view.
         """
         return "Admins" if is_admin(current_admin.username) else "Trainers"
 
     def should_show_configuration(self, section_name):
-        """Verifica si una sección es de configuración"""
+        """Checks if a section is a configuration section"""
         return section_name.startswith("Configuration ")
 
     def extract_username_from_config_section(self, section_name):
-        """Extrae el nombre de usuario de una sección de configuración"""
+        """Extracts the username from a configuration section"""
         return section_name.split(" ", 1)[1]
