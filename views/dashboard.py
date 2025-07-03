@@ -96,7 +96,8 @@ class DashboardFrame(ctk.CTkFrame):
             headers=["ID", "Username", "Role", "Created At"],
             data=admins_data,
             column_weights=[1, 3, 2, 2],
-            table_name="Admins"
+            table_name="Admins",
+            controller=self.controller
         )
         self.admin_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -113,7 +114,8 @@ class DashboardFrame(ctk.CTkFrame):
             headers=["ID", "Name", "Specialty", "Schedule"],
             data=trainers_data,
             column_weights=[1, 3, 2, 2],
-            table_name="Trainers"
+            table_name="Trainers",
+            controller=self.controller
         )
         self.trainer_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -130,7 +132,8 @@ class DashboardFrame(ctk.CTkFrame):
             headers=["ID", "Name", "Membership", "Status", "Join Date"],
             data=users_data,
             column_weights=[1, 3, 2, 2, 2],
-            table_name="Users"
+            table_name="Users",
+            controller=self.controller
         )
         self.user_view.pack(fill="both", expand=True, padx=10, pady=10)
 
