@@ -6,6 +6,7 @@ Applies the DRY (Don't Repeat Yourself) Principle - eliminates code duplication.
 import customtkinter as ctk
 from views.data_table import DataTable
 from views.colors import COLORS
+from views.components.search_bar import SearchBar
 
 
 class TableWithHeaderView(ctk.CTkFrame):
@@ -35,9 +36,17 @@ class TableWithHeaderView(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=(15, 10))
 
+        # Configure grid for left and right alignment
+        header_frame.grid_columnconfigure(0, weight=1)
+        header_frame.grid_columnconfigure(1, weight=0)
+
+        # Left side - Title and description
+        left_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        left_frame.grid(row=0, column=0, sticky="w")
+
         # Title
         title_label = ctk.CTkLabel(
-            header_frame,
+            left_frame,
             text=self.title,
             font=ctk.CTkFont(size=24, weight="bold"),
             anchor="w",
@@ -46,13 +55,23 @@ class TableWithHeaderView(ctk.CTkFrame):
 
         # Description
         description_label = ctk.CTkLabel(
-            header_frame,
+            left_frame,
             text=self.description,
             font=ctk.CTkFont(size=14),
             text_color=COLORS["text_secondary"],
             anchor="w",
         )
         description_label.pack(anchor="w")
+
+        # Right side - Search bar
+        self.search_bar = SearchBar(
+            header_frame,
+            on_search_callback=self._on_search,
+            placeholder_text="Search...",
+            width=250,
+            height=35,
+        )
+        self.search_bar.grid(row=0, column=1, sticky="e", padx=(20, 0))
 
     def _create_table(self):
         """Creates the data table"""
@@ -64,6 +83,12 @@ class TableWithHeaderView(ctk.CTkFrame):
             table_name=self.table_name,
         )
         self.table.pack(fill="both", expand=True, padx=20, pady=(5, 15))
+
+    def _on_search(self, query):
+        """Handle search functionality"""
+        # This method can be implemented to filter the table data
+        # For now, it's a placeholder for future search implementation
+        pass
 
     def update_data(self, new_data):
         """Updates the table data without recreating the entire component"""
