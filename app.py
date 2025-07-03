@@ -29,12 +29,31 @@ class App(ctk.CTk):
         self.title("FitZone - Management System")
         self.configure(fg_color=COLORS["neutral_bg"])
 
-        # Set window size
+        # Set window size and center it
         window_width = 1200
         window_height = 720
-        self.geometry(f"{window_width}x{window_height}")
+
+        # Get screen dimensions
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+
+        # Calculate center position
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+
+        # Set window geometry with center position
+        self.geometry(f"{window_width}x{window_height}+{x}+{y}")
         self.minsize(window_width, window_height)
         self.resizable(True, True)
+
+        # Bring window to front on startup
+        self.lift()
+        self.attributes('-topmost', True)
+        self.focus_force()
+        self.after(100, lambda: self.attributes('-topmost', False))
+
+        # Additional focus handling for development environment
+        self.after(200, self._ensure_window_focus)
 
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
@@ -45,6 +64,14 @@ class App(ctk.CTk):
 
         # Create main content area
         self._create_main_frame()
+
+    def _ensure_window_focus(self):
+        """Ensure window gets focus, especially useful in development environment"""
+        # TODO: Delete this method if app is in production
+        self.lift()
+        self.focus_force()
+        self.attributes('-topmost', True)
+        self.after(50, lambda: self.attributes('-topmost', False))
 
     def _create_header(self):
         """Create the application header with title and branding"""
