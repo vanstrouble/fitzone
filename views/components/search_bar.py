@@ -25,6 +25,10 @@ class SearchBar(ctk.CTkFrame):
         self.width = width
         self.height = height
 
+        # Debouncing for performance
+        self._search_timer = None
+        self._debounce_delay = 300  # 300ms delay
+
         self._create_search_bar()
 
     def _create_search_bar(self):
@@ -70,10 +74,23 @@ class SearchBar(ctk.CTkFrame):
         self.search_entry.bind("<Return>", self._on_search_enter)
 
     def _on_search_change(self, event):
-        """Handle changes in the search text"""
+        """Handle changes in the search text with debouncing"""
+        # Cancel previous timer if exists
+        if self._search_timer:
+            self.after_cancel(self._search_timer)
+
+        # Set new timer for debounced search
+        self._search_timer = self.after(
+            self._debounce_delay,
+            self._execute_search
+        )
+
+    def _execute_search(self):
+        """Execute the actual search after debounce delay"""
         query = self.search_entry.get().strip()
         if self.on_search_callback:
             self.on_search_callback(query)
+        self._search_timer = None
 
     def _on_search_enter(self, event):
         """Handle Enter key"""
