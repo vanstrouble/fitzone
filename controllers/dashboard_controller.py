@@ -8,6 +8,7 @@ from controllers.crud import is_admin
 from services.data_formatter import DataFormatter
 from typing import List, Dict, Any
 import difflib
+import unicodedata
 
 
 class DashboardController:
@@ -30,23 +31,47 @@ class DashboardController:
             "users": True,
         }
 
+    def _normalize_text(self, text: str) -> str:
+        """
+        Normalize text by removing accents and converting to lowercase.
+        Examples: 'María' -> 'maria', 'José' -> 'jose'
+        """
+        # Convert to string and lowercase
+        text = str(text).lower()
+
+        # Remove accents using Unicode normalization
+        # NFD = Canonical Decomposition (separates base char from accent)
+        normalized = unicodedata.normalize("NFD", text)
+
+        # Filter out accent marks (combining characters)
+        without_accents = "".join(
+            char
+            for char in normalized
+            if unicodedata.category(char) != "Mn"  # Mn = Nonspacing_Mark (accents)
+        )
+
+        return without_accents
+
     def _fuzzy_match(self, text: str, query: str, threshold: float = 0.6) -> bool:
         """
-        Fuzzy matching algorithm using difflib.
+        Fuzzy matching algorithm using difflib with accent normalization.
         Returns True if similarity ratio >= threshold
         """
         if not query:
             return True
 
-        text_lower = str(text).lower()
-        query_lower = query.lower()
+        # Normalize both text and query (removes accents)
+        text_normalized = self._normalize_text(text)
+        query_normalized = self._normalize_text(query)
 
         # Exact substring match (highest priority)
-        if query_lower in text_lower:
+        if query_normalized in text_normalized:
             return True
 
         # Fuzzy match using sequence matching
-        similarity = difflib.SequenceMatcher(None, text_lower, query_lower).ratio()
+        similarity = difflib.SequenceMatcher(
+            None, text_normalized, query_normalized
+        ).ratio()
         return similarity >= threshold
 
     def _advanced_search(self, data: List[List[Any]], query: str) -> List[List[Any]]:
@@ -83,8 +108,10 @@ class DashboardController:
         return results
 
     def _exact_match(self, text: str, query: str) -> bool:
-        """Exact substring matching (case-insensitive)"""
-        return query.lower() in str(text).lower()
+        """Exact substring matching (case-insensitive, accent-insensitive)"""
+        text_normalized = self._normalize_text(text)
+        query_normalized = self._normalize_text(query)
+        return query_normalized in text_normalized
 
     def _partial_word_match(self, text: str, query: str) -> bool:
         """Match if query words are found in text"""

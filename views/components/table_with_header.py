@@ -16,7 +16,7 @@ class TableWithHeaderView(ctk.CTkFrame):
     """
 
     def __init__(
-        self, master, title, description, headers, data, column_weights, table_name
+        self, master, title, description, headers, data, column_weights, table_name, controller=None
     ):
         super().__init__(master, fg_color="transparent")
 
@@ -27,6 +27,7 @@ class TableWithHeaderView(ctk.CTkFrame):
         self.data = data
         self.column_weights = column_weights
         self.table_name = table_name
+        self.controller = controller  # Dashboard controller for filtering
 
         self._create_header()
         self._create_table()
@@ -85,10 +86,18 @@ class TableWithHeaderView(ctk.CTkFrame):
         self.table.pack(fill="both", expand=True, padx=20, pady=(5, 15))
 
     def _on_search(self, query):
-        """Handle search functionality"""
-        # This method can be implemented to filter the table data
-        # For now, it's a placeholder for future search implementation
-        pass
+        """Handle search functionality using controller's intelligent cache"""
+        if self.controller:
+            # Use controller's optimized filtering with cache
+            filtered_data = self.controller.filter_data(self.table_name.lower(), query)
+            self.data = filtered_data
+
+            # Update the table with filtered data
+            self.table.destroy()
+            self._create_table()
+        else:
+            # Fallback: basic local filtering (for backward compatibility)
+            pass
 
     def update_data(self, new_data):
         """Updates the table data without recreating the entire component"""
