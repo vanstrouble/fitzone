@@ -5,6 +5,7 @@ from views.colors import COLORS
 from controllers.dashboard_controller import DashboardController
 from views.components.table_with_header import TableWithHeaderView
 from views.components.view_with_header import ViewWithHeaderView
+from views.welcome import WelcomeView
 
 
 class DashboardFrame(ctk.CTkFrame):
@@ -56,8 +57,17 @@ class DashboardFrame(ctk.CTkFrame):
         self.content_container.grid_rowconfigure(0, weight=1)
 
     def _show_default_content(self):
-        default_section = self.controller.get_default_section(self.current_admin)
-        self.show_content(default_section)
+        # Show welcome screen for faster initial load
+        self._show_welcome_screen()
+
+    def _show_welcome_screen(self):
+        """Show elegant welcome screen as the initial view"""
+        for widget in self.content_container.winfo_children():
+            widget.destroy()
+
+        # Create welcome view
+        welcome_view = WelcomeView(self.content_container, self.current_admin)
+        welcome_view.pack(fill="both", expand=True, padx=10, pady=10)
 
     def show_content(self, section_name):
         if self.controller.should_show_configuration(section_name):
