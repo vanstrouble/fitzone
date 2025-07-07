@@ -107,20 +107,13 @@ class DashboardFrame(ctk.CTkFrame):
             data=admins_data,
             column_weights=[1, 3, 2, 2],
             table_name="Admins",
-            controller=self.controller
+            controller=self.controller,
+            crud_callbacks={
+                'on_add': lambda: self._show_admin_form(),
+                'on_update': lambda: self._show_admin_form(self.admin_view.table.get_selected_id())
+            }
         )
         self.admin_view.pack(fill="both", expand=True, padx=10, pady=10)
-
-        from views.components.crud_buttons import CRUDButtons
-        btn_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=(0, 15))
-        crud_buttons = CRUDButtons(
-            btn_frame,
-            table=self.admin_view.table,
-            on_add=lambda: self._show_admin_form(),
-            on_update=lambda: self._show_admin_form(self.admin_view.table.get_selected_id())
-        )
-        crud_buttons.pack(side="right")
 
     def _show_trainers_table(self):
         for widget in self.content_container.winfo_children():
@@ -140,12 +133,6 @@ class DashboardFrame(ctk.CTkFrame):
         )
         self.trainer_view.pack(fill="both", expand=True, padx=10, pady=10)
 
-        from views.components.crud_buttons import CRUDButtons
-        btn_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=(0, 15))
-        crud_buttons = CRUDButtons(btn_frame, table=self.trainer_view.table)
-        crud_buttons.pack(side="right")
-
     def _show_users_table(self):
         for widget in self.content_container.winfo_children():
             widget.destroy()
@@ -163,12 +150,6 @@ class DashboardFrame(ctk.CTkFrame):
             controller=self.controller
         )
         self.user_view.pack(fill="both", expand=True, padx=10, pady=10)
-
-        from views.components.crud_buttons import CRUDButtons
-        btn_frame = ctk.CTkFrame(self.content_container, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=(0, 15))
-        crud_buttons = CRUDButtons(btn_frame, table=self.user_view.table)
-        crud_buttons.pack(side="right")
 
     def _show_user_configuration(self, username):
         for widget in self.content_container.winfo_children():

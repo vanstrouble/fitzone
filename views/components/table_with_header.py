@@ -16,7 +16,8 @@ class TableWithHeaderView(ctk.CTkFrame):
     """
 
     def __init__(
-        self, master, title, description, headers, data, column_weights, table_name, controller=None
+        self, master, title, description, headers, data, column_weights,
+        table_name, controller=None, crud_callbacks=None, show_crud_buttons=True
     ):
         super().__init__(master, fg_color="transparent")
 
@@ -28,9 +29,13 @@ class TableWithHeaderView(ctk.CTkFrame):
         self.column_weights = column_weights
         self.table_name = table_name
         self.controller = controller  # Dashboard controller for filtering
+        self.crud_callbacks = crud_callbacks or {}
+        self.show_crud_buttons = show_crud_buttons
 
         self._create_header()
         self._create_table()
+        if self.show_crud_buttons:
+            self._create_crud_buttons()
 
     def _create_header(self):
         """Creates the header with title and description"""
@@ -85,6 +90,22 @@ class TableWithHeaderView(ctk.CTkFrame):
         )
         self.table.pack(fill="both", expand=True, padx=20, pady=(5, 15))
 
+    def _create_crud_buttons(self):
+        """Creates CRUD buttons below the table"""
+        from views.components.crud_buttons import CRUDButtons
+
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=20, pady=(0, 15))
+
+        self.crud_buttons = CRUDButtons(
+            btn_frame,
+            table=self.table,
+            on_add=self.crud_callbacks.get('on_add'),
+            on_update=self.crud_callbacks.get('on_update'),
+            on_delete=self.crud_callbacks.get('on_delete')
+        )
+        self.crud_buttons.pack(side="right")
+
     def _on_search(self, query):
         """Handle search functionality using controller's intelligent cache"""
         if self.controller:
@@ -94,7 +115,13 @@ class TableWithHeaderView(ctk.CTkFrame):
 
             # Update the table with filtered data
             self.table.destroy()
+            # Destroy buttons if they exist to recreate them in correct order
+            if hasattr(self, 'crud_buttons'):
+                self.crud_buttons.master.destroy()
+
             self._create_table()
+            if self.show_crud_buttons:
+                self._create_crud_buttons()
         else:
             # Fallback: basic local filtering (for backward compatibility)
             pass
@@ -104,4 +131,10 @@ class TableWithHeaderView(ctk.CTkFrame):
         self.data = new_data
         # Recreate only the table
         self.table.destroy()
+        # Destroy buttons if they exist to recreate them in correct order
+        if hasattr(self, 'crud_buttons'):
+            self.crud_buttons.master.destroy()
+
         self._create_table()
+        if self.show_crud_buttons:
+            self._create_crud_buttons()
