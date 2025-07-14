@@ -18,8 +18,16 @@ class AdminFormView(ctk.CTkFrame):
         self._create_widgets()
 
     def _create_widgets(self):
+        # Main scrollable container for the entire form
+        self.scrollable_container = ctk.CTkScrollableFrame(
+            self,
+            fg_color="transparent",
+            corner_radius=0
+        )
+        self.scrollable_container.pack(fill="both", expand=True, padx=0, pady=0)
+
         # Title and description
-        title_frame = ctk.CTkFrame(self, fg_color="transparent")
+        title_frame = ctk.CTkFrame(self.scrollable_container, fg_color="transparent")
         title_frame.pack(fill="x", padx=20, pady=(20, 10))
 
         title_label = ctk.CTkLabel(
@@ -38,7 +46,7 @@ class AdminFormView(ctk.CTkFrame):
         desc_label.pack(anchor="w", pady=(0, 10))
 
         # Form fields
-        form_frame = ctk.CTkFrame(self, fg_color="transparent")
+        form_frame = ctk.CTkFrame(self.scrollable_container, fg_color="transparent")
         form_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         # Username field
@@ -166,17 +174,7 @@ class AdminFormView(ctk.CTkFrame):
                     self.role_var.set(self.admin_to_edit['role'])
 
     def _on_save(self):
-        # Get selected trainer from the table if manager role is selected
-        trainer_id = None
-        if self.role_var.get() == "manager" and hasattr(self, 'trainer_view'):
-            trainer_id = self.trainer_view.table.get_selected_id()
-
-        admin_data = {
-            'username': self.username_entry.get(),
-            'password': self.password_entry.get(),
-            'role': self.role_var.get(),
-            'trainer_id': trainer_id
-        }
+        admin_data = self.get_form_data()
 
         if self.on_save:
             self.on_save(admin_data)
