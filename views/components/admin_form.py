@@ -2,6 +2,7 @@ import customtkinter as ctk
 from views.colors import COLORS
 from controllers.dashboard_controller import DashboardController
 from views.components.table_with_header import TableWithHeaderView
+from views.components.form_buttons import FormButtons
 
 
 class AdminFormView(ctk.CTkFrame):
@@ -128,34 +129,15 @@ class AdminFormView(ctk.CTkFrame):
         # Initially hide trainer selection
         self._update_trainer_selection_visibility()
 
-        # Buttons
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         buttons_frame.pack(fill="x", padx=20, pady=(10, 20))
 
-        self.cancel_button = ctk.CTkButton(
+        self.form_buttons = FormButtons(
             buttons_frame,
-            text="Cancel",
-            fg_color="#e0e0e0",
-            hover_color="#d0d0d0",
-            text_color="#303030",
-            height=38,
-            corner_radius=8,
-            font=ctk.CTkFont(size=14),
-            command=self._on_cancel
+            on_save=self._on_save,
+            on_cancel=self._on_cancel
         )
-        self.cancel_button.pack(side="left", padx=(0, 10))
-
-        self.save_button = ctk.CTkButton(
-            buttons_frame,
-            text="Save",
-            fg_color=COLORS["primary"][0],
-            hover_color=COLORS["primary"][1],
-            height=38,
-            corner_radius=8,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            command=self._on_save
-        )
-        self.save_button.pack(side="right")
+        self.form_buttons.pack(fill="x")
 
         # If editing, populate fields
         if self.admin_to_edit:
