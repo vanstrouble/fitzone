@@ -59,7 +59,8 @@ class CRUDButtons(ctk.CTkFrame):
             command=self._on_add_click
         )
         # Solo empacamos Add por defecto, los otros se empacan según selección
-        self.btn_add.pack(side="right", padx=8)
+        # Sin padx en el botón Add para alinearlo correctamente con la tabla
+        self.btn_add.pack(side="right", padx=0)
 
     def _update_buttons_visibility(self):
         selected = False
@@ -106,11 +107,11 @@ class CRUDButtons(ctk.CTkFrame):
 
         # Empaquetar los botones solo una vez (si no están ya empacados)
         if not self.btn_delete.winfo_ismapped():
-            self.btn_delete.pack(side="left", padx=8)
+            self.btn_delete.pack(side="right", padx=(8, 0))
         if not self.btn_update.winfo_ismapped():
-            self.btn_update.pack(side="left", padx=8)
+            self.btn_update.pack(side="right", padx=(8, 0))
         if not self.btn_add.winfo_ismapped():
-            self.btn_add.pack(side="right", padx=8)
+            self.btn_add.pack(side="right", padx=(8, 0))
 
     def _on_selection_change(self, event=None):
         self._update_buttons_visibility()
