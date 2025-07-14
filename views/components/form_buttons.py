@@ -19,6 +19,7 @@ class FormButtons(ctk.CTkFrame):
         on_save=None,
         on_cancel=None,
         get_form_data=None,
+        validate_form=None,
         save_text="Save",
         cancel_text="Cancel",
         **kwargs
@@ -28,6 +29,7 @@ class FormButtons(ctk.CTkFrame):
         self.on_save = on_save
         self.on_cancel = on_cancel
         self.get_form_data = get_form_data
+        self.validate_form = validate_form
 
         self._create_buttons(save_text, cancel_text)
 
@@ -76,6 +78,25 @@ class FormButtons(ctk.CTkFrame):
         """Handle cancel button click"""
         if self.on_cancel:
             self.on_cancel()
+
+    def update_save_button_state(self):
+        """Update save button state based on form validation"""
+        if self.validate_form:
+            is_valid = self.validate_form()
+            if is_valid:
+                self.save_button.configure(
+                    state="normal",
+                    fg_color=COLORS["primary"][0],
+                    hover_color=COLORS["primary"][1],
+                    text_color="white"
+                )
+            else:
+                self.save_button.configure(
+                    state="disabled",
+                    fg_color="#e0e0e0",
+                    hover_color="#e0e0e0",
+                    text_color="#a0a0a0"
+                )
 
     def set_save_enabled(self, enabled=True):
         """Enable or disable the save button"""
