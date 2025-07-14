@@ -3,6 +3,7 @@ Reusable component to display tables with a header.
 Applies the DRY (Don't Repeat Yourself) Principle - eliminates code duplication.
 """
 
+import tkinter as tk
 import customtkinter as ctk
 from views.data_table import DataTable
 from views.colors import COLORS
@@ -109,6 +110,9 @@ class TableWithHeaderView(ctk.CTkFrame):
     def _on_search(self, query):
         """Handle search functionality using controller's intelligent cache"""
         if self.controller:
+            # Store current scroll position before updating
+            scroll_position = self._get_scroll_position()
+
             # Use controller's optimized filtering with cache
             filtered_data = self.controller.filter_data(self.table_name.lower(), query)
             self.data = filtered_data
@@ -122,9 +126,55 @@ class TableWithHeaderView(ctk.CTkFrame):
             self._create_table()
             if self.show_crud_buttons:
                 self._create_crud_buttons()
+
+            # Restore scroll position after update
+            self._restore_scroll_position(scroll_position)
         else:
             # Fallback: basic local filtering (for backward compatibility)
             pass
+
+    def _get_scroll_position(self):
+        """Get current scroll position of parent scrollable frame"""
+        parent = self.master
+        while parent:
+            if isinstance(parent, ctk.CTkScrollableFrame):
+                try:
+                    # Get the current scroll position
+                    return parent._parent_canvas.canvasy(0)
+                except (AttributeError, tk.TclError):
+                    break
+            parent = parent.master
+        return 0
+
+    def _restore_scroll_position(self, position):
+        """Restore scroll position of parent scrollable frame"""
+        parent = self.master
+        while parent:
+            if isinstance(parent, ctk.CTkScrollableFrame):
+                try:
+                    # Schedule the scroll restoration for after the UI updates
+                    parent.after(50, lambda: self._set_scroll_position(parent, position))
+                    break
+                except (AttributeError, tk.TclError):
+                    break
+            parent = parent.master
+
+    def _set_scroll_position(self, scrollable_frame, position):
+        """Set scroll position on scrollable frame"""
+        try:
+            # Calculate relative position (0.0 to 1.0)
+            canvas = scrollable_frame._parent_canvas
+            scroll_region = canvas.cget("scrollregion")
+            if scroll_region:
+                # Parse scroll region: "x1 y1 x2 y2"
+                coords = scroll_region.split()
+                if len(coords) >= 4:
+                    total_height = float(coords[3]) - float(coords[1])
+                    if total_height > 0:
+                        relative_position = min(max(position / total_height, 0.0), 1.0)
+                        canvas.yview_moveto(relative_position)
+        except (AttributeError, tk.TclError, ValueError):
+            pass  # Silently fail if scroll restoration doesn't work
 
     def update_data(self, new_data):
         """Updates the table data without recreating the entire component"""
