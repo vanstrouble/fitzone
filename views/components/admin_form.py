@@ -1,5 +1,7 @@
 import customtkinter as ctk
 from views.colors import COLORS
+from controllers.dashboard_controller import DashboardController
+from views.components.table_with_header import TableWithHeaderView
 
 
 class AdminFormView(ctk.CTkFrame):
@@ -8,6 +10,9 @@ class AdminFormView(ctk.CTkFrame):
         self.on_save = on_save
         self.on_cancel = on_cancel
         self.admin_to_edit = admin_to_edit
+
+        # Controller for trainer data
+        self.controller = DashboardController()
 
         # Create the form
         self._create_widgets()
@@ -92,7 +97,8 @@ class AdminFormView(ctk.CTkFrame):
             value="admin",
             font=ctk.CTkFont(size=14),
             border_width_checked=6,
-            fg_color=COLORS["primary"][0]
+            fg_color=COLORS["primary"][0],
+            command=self._on_role_change
         )
         self.admin_radio.pack(side="left", padx=(0, 20))
 
@@ -103,9 +109,16 @@ class AdminFormView(ctk.CTkFrame):
             value="manager",
             font=ctk.CTkFont(size=14),
             border_width_checked=6,
-            fg_color=COLORS["primary"][0]
+            fg_color=COLORS["primary"][0],
+            command=self._on_role_change
         )
         self.manager_radio.pack(side="left")
+
+        # Trainer selection section (only shown for manager role)
+        self.trainer_selection_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+
+        # Initially hide trainer selection
+        self._update_trainer_selection_visibility()
 
         # Buttons
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -153,10 +166,16 @@ class AdminFormView(ctk.CTkFrame):
                     self.role_var.set(self.admin_to_edit['role'])
 
     def _on_save(self):
+        # Get selected trainer from the table if manager role is selected
+        trainer_id = None
+        if self.role_var.get() == "manager" and hasattr(self, 'trainer_view'):
+            trainer_id = self.trainer_view.table.get_selected_id()
+
         admin_data = {
             'username': self.username_entry.get(),
             'password': self.password_entry.get(),
-            'role': self.role_var.get()
+            'role': self.role_var.get(),
+            'trainer_id': trainer_id
         }
 
         if self.on_save:
@@ -166,9 +185,48 @@ class AdminFormView(ctk.CTkFrame):
         if self.on_cancel:
             self.on_cancel()
 
+    def _on_role_change(self):
+        """Handle role change - show/hide trainer selection"""
+        self._update_trainer_selection_visibility()
+
+    def _update_trainer_selection_visibility(self):
+        """Show/hide trainer selection based on selected role"""
+        if self.role_var.get() == "manager":
+            self.trainer_selection_frame.pack(fill="both", expand=True, pady=(0, 15))
+            self._show_trainers_table()
+        else:
+            self.trainer_selection_frame.pack_forget()
+
+    def _show_trainers_table(self):
+        """Show trainers table using TableWithHeaderView"""
+        # Clear existing widgets
+        for widget in self.trainer_selection_frame.winfo_children():
+            widget.destroy()
+
+        trainers_data = self.controller.get_trainer_data()
+
+        self.trainer_view = TableWithHeaderView(
+            self.trainer_selection_frame,
+            title="Associate Trainer",
+            description="You can associate a trainer as manager (optional)",
+            headers=["ID", "Name", "Specialty", "Schedule"],
+            data=trainers_data,
+            column_weights=[1, 3, 2, 2],
+            table_name="Trainers",
+            controller=self.controller,
+            show_crud_buttons=False
+        )
+        self.trainer_view.pack(fill="both", expand=True, padx=0, pady=0)
+
     def get_form_data(self):
+        # Get selected trainer from the table if manager role is selected
+        trainer_id = None
+        if self.role_var.get() == "manager" and hasattr(self, 'trainer_view'):
+            trainer_id = self.trainer_view.table.get_selected_id()
+
         return {
             'username': self.username_entry.get(),
             'password': self.password_entry.get(),
-            'role': self.role_var.get()
+            'role': self.role_var.get(),
+            'trainer_id': trainer_id
         }
