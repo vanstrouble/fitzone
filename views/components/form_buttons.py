@@ -18,6 +18,7 @@ class FormButtons(ctk.CTkFrame):
         master,
         on_save=None,
         on_cancel=None,
+        get_form_data=None,
         save_text="Save",
         cancel_text="Cancel",
         **kwargs
@@ -26,6 +27,7 @@ class FormButtons(ctk.CTkFrame):
 
         self.on_save = on_save
         self.on_cancel = on_cancel
+        self.get_form_data = get_form_data
 
         self._create_buttons(save_text, cancel_text)
 
@@ -62,7 +64,13 @@ class FormButtons(ctk.CTkFrame):
     def _on_save(self):
         """Handle save button click"""
         if self.on_save:
-            self.on_save()
+            # If get_form_data is provided, collect form data and pass it to callback
+            if self.get_form_data:
+                form_data = self.get_form_data()
+                self.on_save(form_data)
+            else:
+                # Fallback to simple callback without data
+                self.on_save()
 
     def _on_cancel(self):
         """Handle cancel button click"""

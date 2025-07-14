@@ -134,8 +134,9 @@ class AdminFormView(ctk.CTkFrame):
 
         self.form_buttons = FormButtons(
             buttons_frame,
-            on_save=self._on_save,
-            on_cancel=self._on_cancel
+            on_save=self.on_save,
+            on_cancel=self.on_cancel,
+            get_form_data=self.get_form_data
         )
         self.form_buttons.pack(fill="x")
 
@@ -154,16 +155,6 @@ class AdminFormView(ctk.CTkFrame):
                     self.username_entry.insert(0, self.admin_to_edit['username'])
                 if 'role' in self.admin_to_edit:
                     self.role_var.set(self.admin_to_edit['role'])
-
-    def _on_save(self):
-        admin_data = self.get_form_data()
-
-        if self.on_save:
-            self.on_save(admin_data)
-
-    def _on_cancel(self):
-        if self.on_cancel:
-            self.on_cancel()
 
     def _on_role_change(self):
         """Handle role change - show/hide trainer selection"""
