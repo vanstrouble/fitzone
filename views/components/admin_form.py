@@ -89,6 +89,26 @@ class AdminFormView(ctk.CTkFrame):
         # Bind event to validate form when password changes
         self.password_entry.bind('<KeyRelease>', self._validate_form)
 
+        # Repeat password field
+        repeat_password_label = ctk.CTkLabel(
+            form_frame,
+            text="Repeat password:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w"
+        )
+        repeat_password_label.pack(anchor="w", pady=(0, 5))
+
+        self.repeat_password_entry = ctk.CTkEntry(
+            form_frame,
+            height=40,
+            placeholder_text="Repeat password",
+            show="•",
+            corner_radius=8
+        )
+        self.repeat_password_entry.pack(fill="x", pady=(0, 15))
+        # Bind event to validate form when repeat password changes
+        self.repeat_password_entry.bind('<KeyRelease>', self._validate_form)
+
         # Role selection
         role_label = ctk.CTkLabel(
             form_frame,
@@ -155,9 +175,10 @@ class AdminFormView(ctk.CTkFrame):
         """Validate form fields and enable/disable save button"""
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
+        repeat_password = self.repeat_password_entry.get().strip()
 
-        # Enable save button only if both fields have text
-        is_valid = bool(username and password)
+        # Enable save button only if all fields have text
+        is_valid = bool(username and password and repeat_password)
         self.form_buttons.set_save_enabled(is_valid)
 
     def _populate_fields(self):
