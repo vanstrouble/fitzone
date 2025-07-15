@@ -15,6 +15,9 @@ class AdminFormView(ctk.CTkFrame):
         # Controller for trainer data
         self.controller = DashboardController()
 
+        # Debounce system for validation (300ms delay)
+        self._validation_timer = None
+
         # Create the form
         self._create_widgets()
 
@@ -66,8 +69,8 @@ class AdminFormView(ctk.CTkFrame):
             corner_radius=8
         )
         self.username_entry.pack(fill="x", pady=(0, 15))
-        # Bind event to validate form when username changes
-        self.username_entry.bind('<KeyRelease>', self._validate_form)
+        # Bind event to validate form when username changes (with debounce)
+        self.username_entry.bind('<KeyRelease>', self._on_field_change)
 
         # Password field
         password_label = ctk.CTkLabel(
@@ -86,8 +89,8 @@ class AdminFormView(ctk.CTkFrame):
             corner_radius=8
         )
         self.password_entry.pack(fill="x", pady=(0, 15))
-        # Bind event to validate form when password changes
-        self.password_entry.bind('<KeyRelease>', self._validate_form)
+        # Bind event to validate form when password changes (with debounce)
+        self.password_entry.bind('<KeyRelease>', self._on_field_change)
 
         # Repeat password field
         repeat_password_label = ctk.CTkLabel(
@@ -108,6 +111,26 @@ class AdminFormView(ctk.CTkFrame):
         )
         # Don't pack initially - will be shown/hidden based on validation
 
+        # Error message for username validation (initially hidden)
+        self.username_error_label = ctk.CTkLabel(
+            form_frame,
+            text="",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["danger"][0],
+            anchor="w"
+        )
+        # Don't pack initially - will be shown/hidden based on validation
+
+        # Error message for password validation (initially hidden)
+        self.password_validation_error_label = ctk.CTkLabel(
+            form_frame,
+            text="",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["danger"][0],
+            anchor="w"
+        )
+        # Don't pack initially - will be shown/hidden based on validation
+
         self.repeat_password_entry = ctk.CTkEntry(
             form_frame,
             height=40,
@@ -116,8 +139,8 @@ class AdminFormView(ctk.CTkFrame):
             corner_radius=8
         )
         self.repeat_password_entry.pack(fill="x", pady=(0, 15))
-        # Bind event to validate form when repeat password changes
-        self.repeat_password_entry.bind('<KeyRelease>', self._validate_form)
+        # Bind event to validate form when repeat password changes (with debounce)
+        self.repeat_password_entry.bind('<KeyRelease>', self._on_field_change)
 
         # Role selection
         role_label = ctk.CTkLabel(
@@ -181,36 +204,123 @@ class AdminFormView(ctk.CTkFrame):
         if self.admin_to_edit:
             self._populate_fields()
 
+    def _on_field_change(self, event=None):
+        """Handle field changes with debounce - wait 300ms before validating"""
+        # Cancel previous timer if it exists
+        if self._validation_timer:
+            self.after_cancel(self._validation_timer)
+
+        # Set new timer for 300ms delay
+        self._validation_timer = self.after(700, self._validate_form)
+
     def _validate_form(self, event=None):
         """Validate form fields and enable/disable save button"""
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
         repeat_password = self.repeat_password_entry.get().strip()
 
+        # Validate username
+        username_valid, username_error = self._validate_username(username)
+
+        # Validate password
+        password_valid, password_error = self._validate_password(password)
+
         # Check if passwords match
         passwords_match = password == repeat_password if password and repeat_password else True
 
-        # Show/hide error message and change field colors
+        # Show/hide username error message
+        if username and not username_valid:
+            self.username_error_label.configure(text=username_error)
+            self.username_error_label.pack(anchor="w", pady=(0, 5), before=self.password_entry)
+            self.username_entry.configure(border_color=COLORS["danger"][0])
+        else:
+            self.username_error_label.pack_forget()
+            self.username_entry.configure(border_color=("gray60", "gray40"))
+
+        # Show/hide password validation error message
+        if password and not password_valid:
+            self.password_validation_error_label.configure(text=password_error)
+            self.password_validation_error_label.pack(
+                anchor="w", pady=(0, 5), before=self.repeat_password_entry
+            )
+            self.password_entry.configure(border_color=COLORS["danger"][0])
+        else:
+            self.password_validation_error_label.pack_forget()
+            if passwords_match:  # Only reset color if passwords match
+                self.password_entry.configure(border_color=("gray60", "gray40"))
+
+        # Show/hide password match error message
         if password and repeat_password and not passwords_match:
-            # Show error message between label and input
             self.password_error_label.pack(
                 anchor="w", pady=(0, 5), before=self.repeat_password_entry
             )
-
-            # Change password fields to red using danger color
             self.password_entry.configure(border_color=COLORS["danger"][0])
             self.repeat_password_entry.configure(border_color=COLORS["danger"][0])
         else:
-            # Hide error message
             self.password_error_label.pack_forget()
+            if password_valid or not password:  # Only reset if password is valid or empty
+                self.repeat_password_entry.configure(border_color=("gray60", "gray40"))
 
-            # Reset password fields to normal color (same as login.py)
-            self.password_entry.configure(border_color=("gray60", "gray40"))
-            self.repeat_password_entry.configure(border_color=("gray60", "gray40"))
-
-        # Enable save button only if all fields have text and passwords match
-        is_valid = bool(username and password and repeat_password and passwords_match)
+        # Enable save button only if all validations pass
+        is_valid = bool(
+            username and password and repeat_password and
+            username_valid and password_valid and passwords_match
+        )
         self.form_buttons.set_save_enabled(is_valid)
+
+    def _validate_username(self, username):
+        """Validate username format and requirements"""
+        if not username:
+            return True, ""  # Empty is valid (will be handled by form validation)
+
+        # Username requirements
+        if len(username) < 3:
+            return False, "Username must be at least 3 characters long"
+
+        if len(username) > 20:
+            return False, "Username must be less than 20 characters"
+
+        # Only alphanumeric characters, underscore, and hyphen allowed
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', username):
+            return False, "Username can only contain letters, numbers, underscore, and hyphen"
+
+        # Must start with a letter
+        if not username[0].isalpha():
+            return False, "Username must start with a letter"
+
+        return True, ""
+
+    def _validate_password(self, password):
+        """Validate password format and requirements"""
+        if not password:
+            return True, ""  # Empty is valid (will be handled by form validation)
+
+        # Password requirements
+        if len(password) < 6:
+            return False, "Password must be at least 6 characters long"
+
+        if len(password) > 20:
+            return False, "Password must be less than 20 characters"
+
+        # Check for at least one uppercase letter
+        if not any(c.isupper() for c in password):
+            return False, "Password must contain at least one uppercase letter"
+
+        # Check for at least one lowercase letter
+        if not any(c.islower() for c in password):
+            return False, "Password must contain at least one lowercase letter"
+
+        # Check for at least one digit
+        if not any(c.isdigit() for c in password):
+            return False, "Password must contain at least one number"
+
+        # Check for at least one special character
+        import re
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+            return False, "Password must contain at least one special character"
+
+        return True, ""
 
     def _populate_fields(self):
         if self.admin_to_edit:
