@@ -101,9 +101,19 @@ class FormButtons(ctk.CTkFrame):
     def set_save_enabled(self, enabled=True):
         """Enable or disable the save button"""
         if enabled:
-            self.save_button.configure(state="normal")
+            self.save_button.configure(
+                state="normal",
+                fg_color=COLORS["primary"][0],
+                hover_color=COLORS["primary"][1],
+                text_color="white"
+            )
         else:
-            self.save_button.configure(state="disabled")
+            self.save_button.configure(
+                state="disabled",
+                fg_color="#e0e0e0",
+                hover_color="#e0e0e0",
+                text_color="#a0a0a0"
+            )
 
     def set_cancel_enabled(self, enabled=True):
         """Enable or disable the cancel button"""

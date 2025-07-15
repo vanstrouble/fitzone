@@ -66,6 +66,8 @@ class AdminFormView(ctk.CTkFrame):
             corner_radius=8
         )
         self.username_entry.pack(fill="x", pady=(0, 15))
+        # Bind event to validate form when username changes
+        self.username_entry.bind('<KeyRelease>', self._validate_form)
 
         # Password field
         password_label = ctk.CTkLabel(
@@ -84,6 +86,8 @@ class AdminFormView(ctk.CTkFrame):
             corner_radius=8
         )
         self.password_entry.pack(fill="x", pady=(0, 15))
+        # Bind event to validate form when password changes
+        self.password_entry.bind('<KeyRelease>', self._validate_form)
 
         # Role selection
         role_label = ctk.CTkLabel(
@@ -140,9 +144,21 @@ class AdminFormView(ctk.CTkFrame):
         )
         self.form_buttons.pack(fill="x")
 
+        # Initially disable save button
+        self.form_buttons.set_save_enabled(False)
+
         # If editing, populate fields
         if self.admin_to_edit:
             self._populate_fields()
+
+    def _validate_form(self, event=None):
+        """Validate form fields and enable/disable save button"""
+        username = self.username_entry.get().strip()
+        password = self.password_entry.get().strip()
+
+        # Enable save button only if both fields have text
+        is_valid = bool(username and password)
+        self.form_buttons.set_save_enabled(is_valid)
 
     def _populate_fields(self):
         if self.admin_to_edit:
@@ -155,6 +171,9 @@ class AdminFormView(ctk.CTkFrame):
                     self.username_entry.insert(0, self.admin_to_edit['username'])
                 if 'role' in self.admin_to_edit:
                     self.role_var.set(self.admin_to_edit['role'])
+
+            # Validate form after populating fields
+            self._validate_form()
 
     def _on_role_change(self):
         """Handle role change - show/hide trainer selection"""
