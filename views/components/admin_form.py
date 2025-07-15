@@ -98,6 +98,16 @@ class AdminFormView(ctk.CTkFrame):
         )
         repeat_password_label.pack(anchor="w", pady=(0, 5))
 
+        # Error message for password mismatch (initially hidden)
+        self.password_error_label = ctk.CTkLabel(
+            form_frame,
+            text="Passwords do not match",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["danger"][0],
+            anchor="w"
+        )
+        # Don't pack initially - will be shown/hidden based on validation
+
         self.repeat_password_entry = ctk.CTkEntry(
             form_frame,
             height=40,
@@ -177,8 +187,29 @@ class AdminFormView(ctk.CTkFrame):
         password = self.password_entry.get().strip()
         repeat_password = self.repeat_password_entry.get().strip()
 
-        # Enable save button only if all fields have text
-        is_valid = bool(username and password and repeat_password)
+        # Check if passwords match
+        passwords_match = password == repeat_password if password and repeat_password else True
+
+        # Show/hide error message and change field colors
+        if password and repeat_password and not passwords_match:
+            # Show error message between label and input
+            self.password_error_label.pack(
+                anchor="w", pady=(0, 5), before=self.repeat_password_entry
+            )
+
+            # Change password fields to red using danger color
+            self.password_entry.configure(border_color=COLORS["danger"][0])
+            self.repeat_password_entry.configure(border_color=COLORS["danger"][0])
+        else:
+            # Hide error message
+            self.password_error_label.pack_forget()
+
+            # Reset password fields to normal color (same as login.py)
+            self.password_entry.configure(border_color=("gray60", "gray40"))
+            self.repeat_password_entry.configure(border_color=("gray60", "gray40"))
+
+        # Enable save button only if all fields have text and passwords match
+        is_valid = bool(username and password and repeat_password and passwords_match)
         self.form_buttons.set_save_enabled(is_valid)
 
     def _populate_fields(self):
