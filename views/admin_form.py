@@ -6,6 +6,14 @@ from views.components.form_buttons import FormButtons
 
 
 class AdminFormView(ctk.CTkFrame):
+    # Validation constants
+    USERNAME_MIN_LENGTH = 3
+    USERNAME_MAX_LENGTH = 20
+    PASSWORD_MIN_LENGTH = 6
+    PASSWORD_MAX_LENGTH = 20
+    USERNAME_PATTERN = r"^[a-zA-Z0-9_-]+$"
+    PASSWORD_SPECIAL_CHARS = r'[!@#$%^&*(),.?":{}|<>]'
+
     def __init__(self, master, on_save=None, on_cancel=None, admin_to_edit=None):
         super().__init__(master, fg_color=("white", "gray17"), corner_radius=15)
         self.on_save = on_save
@@ -24,9 +32,7 @@ class AdminFormView(ctk.CTkFrame):
     def _create_widgets(self):
         # Main scrollable container for the entire form
         self.scrollable_container = ctk.CTkScrollableFrame(
-            self,
-            fg_color="transparent",
-            corner_radius=0
+            self, fg_color="transparent", corner_radius=0
         )
         self.scrollable_container.pack(fill="both", expand=True, padx=0, pady=0)
 
@@ -36,8 +42,10 @@ class AdminFormView(ctk.CTkFrame):
 
         title_label = ctk.CTkLabel(
             title_frame,
-            text="Add Administrator" if not self.admin_to_edit else "Edit Administrator",
-            font=ctk.CTkFont(size=24, weight="bold")
+            text=(
+                "Add Administrator" if not self.admin_to_edit else "Edit Administrator"
+            ),
+            font=ctk.CTkFont(size=24, weight="bold"),
         )
         title_label.pack(anchor="w")
 
@@ -45,7 +53,7 @@ class AdminFormView(ctk.CTkFrame):
             title_frame,
             text="Enter the details for the administrator account",
             font=ctk.CTkFont(size=14),
-            text_color=COLORS["text_secondary"]
+            text_color=COLORS["text_secondary"],
         )
         desc_label.pack(anchor="w", pady=(0, 10))
 
@@ -58,26 +66,23 @@ class AdminFormView(ctk.CTkFrame):
             form_frame,
             text="Username:",
             font=ctk.CTkFont(size=14, weight="bold"),
-            anchor="w"
+            anchor="w",
         )
         self.username_label.pack(anchor="w", pady=(0, 5))
 
         self.username_entry = ctk.CTkEntry(
-            form_frame,
-            height=40,
-            placeholder_text="Enter username",
-            corner_radius=8
+            form_frame, height=40, placeholder_text="Enter username", corner_radius=8
         )
         self.username_entry.pack(fill="x", pady=(0, 15))
         # Bind event to validate form when username changes (with debounce)
-        self.username_entry.bind('<KeyRelease>', self._on_field_change)
+        self.username_entry.bind("<KeyRelease>", self._on_field_change)
 
         # Password field
         self.password_label = ctk.CTkLabel(
             form_frame,
             text="Password:",
             font=ctk.CTkFont(size=14, weight="bold"),
-            anchor="w"
+            anchor="w",
         )
         self.password_label.pack(anchor="w", pady=(0, 5))
 
@@ -91,11 +96,11 @@ class AdminFormView(ctk.CTkFrame):
             height=40,
             placeholder_text="Enter password",
             show="•",
-            corner_radius=8
+            corner_radius=8,
         )
         self.password_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         # Bind event to validate form when password changes (with debounce)
-        self.password_entry.bind('<KeyRelease>', self._on_field_change)
+        self.password_entry.bind("<KeyRelease>", self._on_field_change)
 
         # Toggle password visibility button
         self.password_toggle_btn = ctk.CTkButton(
@@ -107,7 +112,7 @@ class AdminFormView(ctk.CTkFrame):
             fg_color=("gray80", "gray25"),
             hover_color=("gray70", "gray35"),
             corner_radius=8,
-            command=self._toggle_password_visibility
+            command=self._toggle_password_visibility,
         )
         self.password_toggle_btn.grid(row=0, column=1, sticky="e")
 
@@ -115,13 +120,13 @@ class AdminFormView(ctk.CTkFrame):
         self.password_visible = False
 
         # Repeat password field
-        repeat_password_label = ctk.CTkLabel(
+        self.repeat_password_label = ctk.CTkLabel(
             form_frame,
             text="Repeat password:",
             font=ctk.CTkFont(size=14, weight="bold"),
-            anchor="w"
+            anchor="w",
         )
-        repeat_password_label.pack(anchor="w", pady=(0, 5))
+        self.repeat_password_label.pack(anchor="w", pady=(0, 5))
 
         # Repeat password input with toggle button container
         repeat_password_container = ctk.CTkFrame(form_frame, fg_color="transparent")
@@ -133,11 +138,11 @@ class AdminFormView(ctk.CTkFrame):
             height=40,
             placeholder_text="Repeat password",
             show="•",
-            corner_radius=8
+            corner_radius=8,
         )
         self.repeat_password_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         # Bind event to validate form when repeat password changes (with debounce)
-        self.repeat_password_entry.bind('<KeyRelease>', self._on_field_change)
+        self.repeat_password_entry.bind("<KeyRelease>", self._on_field_change)
 
         # Toggle repeat password visibility button
         self.repeat_password_toggle_btn = ctk.CTkButton(
@@ -149,7 +154,7 @@ class AdminFormView(ctk.CTkFrame):
             fg_color=("gray80", "gray25"),
             hover_color=("gray70", "gray35"),
             corner_radius=8,
-            command=self._toggle_repeat_password_visibility
+            command=self._toggle_repeat_password_visibility,
         )
         self.repeat_password_toggle_btn.grid(row=0, column=1, sticky="e")
 
@@ -162,7 +167,7 @@ class AdminFormView(ctk.CTkFrame):
             text="Passwords do not match",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["danger"][0],
-            anchor="w"
+            anchor="w",
         )
         # Don't pack initially - will be shown/hidden based on validation
 
@@ -172,7 +177,7 @@ class AdminFormView(ctk.CTkFrame):
             text="",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["danger"][0],
-            anchor="w"
+            anchor="w",
         )
         # Don't pack initially - will be shown/hidden based on validation
 
@@ -182,7 +187,7 @@ class AdminFormView(ctk.CTkFrame):
             text="",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=COLORS["danger"][0],
-            anchor="w"
+            anchor="w",
         )
         # Don't pack initially - will be shown/hidden based on validation
 
@@ -191,7 +196,7 @@ class AdminFormView(ctk.CTkFrame):
             form_frame,
             text="Role:",
             font=ctk.CTkFont(size=14, weight="bold"),
-            anchor="w"
+            anchor="w",
         )
         role_label.pack(anchor="w", pady=(0, 5))
 
@@ -208,7 +213,7 @@ class AdminFormView(ctk.CTkFrame):
             font=ctk.CTkFont(size=14),
             border_width_checked=6,
             fg_color=COLORS["primary"][0],
-            command=self._on_role_change
+            command=self._on_role_change,
         )
         self.admin_radio.pack(side="left", padx=(0, 20))
 
@@ -220,7 +225,7 @@ class AdminFormView(ctk.CTkFrame):
             font=ctk.CTkFont(size=14),
             border_width_checked=6,
             fg_color=COLORS["primary"][0],
-            command=self._on_role_change
+            command=self._on_role_change,
         )
         self.manager_radio.pack(side="left")
 
@@ -228,7 +233,7 @@ class AdminFormView(ctk.CTkFrame):
         self.trainer_selection_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
 
         # Initially hide trainer selection
-        self._update_trainer_selection_visibility()
+        self._on_role_change()
 
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         buttons_frame.pack(fill="x", padx=20, pady=(10, 20))
@@ -237,7 +242,7 @@ class AdminFormView(ctk.CTkFrame):
             buttons_frame,
             on_save=self.on_save,
             on_cancel=self.on_cancel,
-            get_form_data=self.get_form_data
+            get_form_data=self.get_form_data,
         )
         self.form_buttons.pack(fill="x")
 
@@ -270,12 +275,16 @@ class AdminFormView(ctk.CTkFrame):
         password_valid, password_error = self._validate_password(password)
 
         # Check if passwords match
-        passwords_match = password == repeat_password if password and repeat_password else True
+        passwords_match = (
+            password == repeat_password if password and repeat_password else True
+        )
 
         # Show/hide username error message
         if username and not username_valid:
             self.username_error_label.configure(text=username_error)
-            self.username_error_label.pack(anchor="w", pady=(0, 5), after=self.username_label)
+            self.username_error_label.pack(
+                anchor="w", pady=(0, 5), after=self.username_label
+            )
             self.username_entry.configure(border_color=COLORS["danger"][0])
         else:
             self.username_error_label.pack_forget()
@@ -296,19 +305,25 @@ class AdminFormView(ctk.CTkFrame):
         # Show/hide password match error message
         if password and repeat_password and not passwords_match:
             self.password_error_label.pack(
-                anchor="w", pady=(0, 5), before=self.repeat_password_entry
+                anchor="w", pady=(0, 5), after=self.repeat_password_label
             )
             self.password_entry.configure(border_color=COLORS["danger"][0])
             self.repeat_password_entry.configure(border_color=COLORS["danger"][0])
         else:
             self.password_error_label.pack_forget()
-            if password_valid or not password:  # Only reset if password is valid or empty
+            if (
+                password_valid or not password
+            ):  # Only reset if password is valid or empty
                 self.repeat_password_entry.configure(border_color=("gray60", "gray40"))
 
         # Enable save button only if all validations pass
         is_valid = bool(
-            username and password and repeat_password and
-            username_valid and password_valid and passwords_match
+            username
+            and password
+            and repeat_password
+            and username_valid
+            and password_valid
+            and passwords_match
         )
         self.form_buttons.set_save_enabled(is_valid)
 
@@ -318,16 +333,26 @@ class AdminFormView(ctk.CTkFrame):
             return True, ""  # Empty is valid (will be handled by form validation)
 
         # Username requirements
-        if len(username) < 3:
-            return False, "Username must be at least 3 characters long"
+        if len(username) < self.USERNAME_MIN_LENGTH:
+            return (
+                False,
+                f"Username must be at least {self.USERNAME_MIN_LENGTH} characters long",
+            )
 
-        if len(username) > 20:
-            return False, "Username must be less than 20 characters"
+        if len(username) > self.USERNAME_MAX_LENGTH:
+            return (
+                False,
+                f"Username must be less than {self.USERNAME_MAX_LENGTH} characters",
+            )
 
         # Only alphanumeric characters, underscore, and hyphen allowed
         import re
-        if not re.match(r'^[a-zA-Z0-9_-]+$', username):
-            return False, "Username can only contain letters, numbers, underscore, and hyphen"
+
+        if not re.match(self.USERNAME_PATTERN, username):
+            return (
+                False,
+                "Username can only contain letters, numbers, underscore, and hyphen",
+            )
 
         # Must start with a letter
         if not username[0].isalpha():
@@ -341,11 +366,17 @@ class AdminFormView(ctk.CTkFrame):
             return True, ""  # Empty is valid (will be handled by form validation)
 
         # Password requirements
-        if len(password) < 6:
-            return False, "Password must be at least 6 characters long"
+        if len(password) < self.PASSWORD_MIN_LENGTH:
+            return (
+                False,
+                f"Password must be at least {self.PASSWORD_MIN_LENGTH} characters long",
+            )
 
-        if len(password) > 20:
-            return False, "Password must be less than 20 characters"
+        if len(password) > self.PASSWORD_MAX_LENGTH:
+            return (
+                False,
+                f"Password must be less than {self.PASSWORD_MAX_LENGTH} characters",
+            )
 
         # Check for at least one uppercase letter
         if not any(c.isupper() for c in password):
@@ -361,7 +392,8 @@ class AdminFormView(ctk.CTkFrame):
 
         # Check for at least one special character
         import re
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+
+        if not re.search(self.PASSWORD_SPECIAL_CHARS, password):
             return False, "Password must contain at least one special character"
 
         return True, ""
@@ -369,24 +401,20 @@ class AdminFormView(ctk.CTkFrame):
     def _populate_fields(self):
         if self.admin_to_edit:
             # Assuming admin_to_edit is a dict or object with username and role
-            if hasattr(self.admin_to_edit, 'username'):
+            if hasattr(self.admin_to_edit, "username"):
                 self.username_entry.insert(0, self.admin_to_edit.username)
                 self.role_var.set(self.admin_to_edit.role)
             elif isinstance(self.admin_to_edit, dict):
-                if 'username' in self.admin_to_edit:
-                    self.username_entry.insert(0, self.admin_to_edit['username'])
-                if 'role' in self.admin_to_edit:
-                    self.role_var.set(self.admin_to_edit['role'])
+                if "username" in self.admin_to_edit:
+                    self.username_entry.insert(0, self.admin_to_edit["username"])
+                if "role" in self.admin_to_edit:
+                    self.role_var.set(self.admin_to_edit["role"])
 
             # Validate form after populating fields
             self._validate_form()
 
     def _on_role_change(self):
-        """Handle role change - show/hide trainer selection"""
-        self._update_trainer_selection_visibility()
-
-    def _update_trainer_selection_visibility(self):
-        """Show/hide trainer selection based on selected role"""
+        """Handle role change - show/hide trainer selection and update table"""
         if self.role_var.get() == "manager":
             self.trainer_selection_frame.pack(fill="both", expand=True, pady=(0, 15))
             self._show_trainers_table()
@@ -410,45 +438,47 @@ class AdminFormView(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2],
             table_name="Trainers",
             controller=self.controller,
-            show_crud_buttons=False
+            show_crud_buttons=False,
         )
         self.trainer_view.pack(fill="both", expand=True, padx=0, pady=0)
 
     def get_form_data(self):
         # Get selected trainer from the table if manager role is selected
         trainer_id = None
-        if self.role_var.get() == "manager" and hasattr(self, 'trainer_view'):
+        if self.role_var.get() == "manager" and hasattr(self, "trainer_view"):
             trainer_id = self.trainer_view.table.get_selected_id()
 
         return {
-            'username': self.username_entry.get(),
-            'password': self.password_entry.get(),
-            'role': self.role_var.get(),
-            'trainer_id': trainer_id
+            "username": self.username_entry.get(),
+            "password": self.password_entry.get(),
+            "role": self.role_var.get(),
+            "trainer_id": trainer_id,
         }
 
-    def _toggle_password_visibility(self):
+    def _toggle_password_visibility(self, field_type="password"):
         """Toggle password visibility between hidden and visible"""
-        if self.password_visible:
+        if field_type == "password":
+            entry = self.password_entry
+            button = self.password_toggle_btn
+            visible_attr = "password_visible"
+        else:  # repeat_password
+            entry = self.repeat_password_entry
+            button = self.repeat_password_toggle_btn
+            visible_attr = "repeat_password_visible"
+
+        current_visible = getattr(self, visible_attr)
+
+        if current_visible:
             # Hide password
-            self.password_entry.configure(show="•")
-            self.password_toggle_btn.configure(text="🙈")
-            self.password_visible = False
+            entry.configure(show="•")
+            button.configure(text="🙈")
+            setattr(self, visible_attr, False)
         else:
             # Show password
-            self.password_entry.configure(show="")
-            self.password_toggle_btn.configure(text="🤫")
-            self.password_visible = True
+            entry.configure(show="")
+            button.configure(text="🤫")
+            setattr(self, visible_attr, True)
 
     def _toggle_repeat_password_visibility(self):
         """Toggle repeat password visibility between hidden and visible"""
-        if self.repeat_password_visible:
-            # Hide password
-            self.repeat_password_entry.configure(show="•")
-            self.repeat_password_toggle_btn.configure(text="🙈")
-            self.repeat_password_visible = False
-        else:
-            # Show password
-            self.repeat_password_entry.configure(show="")
-            self.repeat_password_toggle_btn.configure(text="🤫")
-            self.repeat_password_visible = True
+        self._toggle_password_visibility("repeat_password")
