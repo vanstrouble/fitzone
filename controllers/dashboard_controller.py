@@ -6,6 +6,8 @@ and coordination between the model (data) and the view (UI).
 
 from controllers.crud import is_admin
 from services.data_formatter import DataFormatter
+from controllers.crud import create_admin
+from models.admin import Admin
 from typing import List, Dict, Any
 import difflib
 import unicodedata
@@ -209,3 +211,37 @@ class DashboardController:
     def extract_username_from_config_section(self, section_name):
         """Extracts the username from a configuration section"""
         return section_name.split(" ", 1)[1]
+
+    def create_admin_data(self, admin_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new admin using the CRUD function.
+        Returns a dictionary with success status and message.
+        """
+        try:
+            # Create Admin object from form data
+            admin = Admin(
+                username=admin_data.get("username"),
+                password=admin_data.get("password"),
+                role=admin_data.get("role", "admin")
+            )
+
+            # Use CRUD function directly
+            created_admin = create_admin(admin)
+
+            if created_admin:
+                # Invalidate cache after successful creation
+                self.invalidate_cache("admins")
+                return {
+                    "success": True,
+                    "message": f"Administrator '{admin.username}' created successfully"
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Username '{admin.username}' already exists or creation failed"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error creating admin: {str(e)}"
+            }

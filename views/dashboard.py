@@ -201,10 +201,21 @@ class DashboardFrame(ctk.CTkFrame):
         admin_form.pack(fill="both", expand=True, padx=10, pady=10)
 
     def _handle_admin_save(self, admin_data):
-        # Here you would call the controller to save the admin data
-        # For now, just print the data and return to the table
-        print("Saving admin:", admin_data)
-        self._show_admins_table()
+        """Handle saving admin data through the controller"""
+        try:
+            # Use the specific create method for new admins
+            result = self.controller.create_admin_data(admin_data)
+
+            if result["success"]:
+                print(result["message"])
+                # Return to the admins table after successful save
+                self._show_admins_table()
+            else:
+                print(f"Error: {result['message']}")
+                # Could show an error message to the user here
+        except Exception as e:
+            print(f"Error saving admin: {e}")
+            # Could show an error message to the user here
 
     def _handle_admin_cancel(self):
         # Return to the admins table

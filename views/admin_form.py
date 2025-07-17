@@ -242,7 +242,7 @@ class AdminFormView(ctk.CTkFrame):
             buttons_frame,
             on_save=self.on_save,
             on_cancel=self.on_cancel,
-            get_form_data=self.get_form_data,
+            get_form_data=self.get_form_data
         )
         self.form_buttons.pack(fill="x")
 
