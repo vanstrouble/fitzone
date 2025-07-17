@@ -54,13 +54,13 @@ class AdminFormView(ctk.CTkFrame):
         form_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         # Username field
-        username_label = ctk.CTkLabel(
+        self.username_label = ctk.CTkLabel(
             form_frame,
             text="Username:",
             font=ctk.CTkFont(size=14, weight="bold"),
             anchor="w"
         )
-        username_label.pack(anchor="w", pady=(0, 5))
+        self.username_label.pack(anchor="w", pady=(0, 5))
 
         self.username_entry = ctk.CTkEntry(
             form_frame,
@@ -73,13 +73,13 @@ class AdminFormView(ctk.CTkFrame):
         self.username_entry.bind('<KeyRelease>', self._on_field_change)
 
         # Password field
-        password_label = ctk.CTkLabel(
+        self.password_label = ctk.CTkLabel(
             form_frame,
             text="Password:",
             font=ctk.CTkFont(size=14, weight="bold"),
             anchor="w"
         )
-        password_label.pack(anchor="w", pady=(0, 5))
+        self.password_label.pack(anchor="w", pady=(0, 5))
 
         self.password_entry = ctk.CTkEntry(
             form_frame,
@@ -231,7 +231,7 @@ class AdminFormView(ctk.CTkFrame):
         # Show/hide username error message
         if username and not username_valid:
             self.username_error_label.configure(text=username_error)
-            self.username_error_label.pack(anchor="w", pady=(0, 5), before=self.password_entry)
+            self.username_error_label.pack(anchor="w", pady=(0, 5), after=self.username_label)
             self.username_entry.configure(border_color=COLORS["danger"][0])
         else:
             self.username_error_label.pack_forget()
@@ -241,7 +241,7 @@ class AdminFormView(ctk.CTkFrame):
         if password and not password_valid:
             self.password_validation_error_label.configure(text=password_error)
             self.password_validation_error_label.pack(
-                anchor="w", pady=(0, 5), before=self.repeat_password_entry
+                anchor="w", pady=(0, 5), after=self.password_label
             )
             self.password_entry.configure(border_color=COLORS["danger"][0])
         else:

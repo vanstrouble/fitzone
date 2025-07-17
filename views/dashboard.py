@@ -1,8 +1,11 @@
 import customtkinter as ctk
-from views.sidebar import Sidebar
-from views.admin_config import AdminConfigFrame
+
 from views.colors import COLORS
 from controllers.dashboard_controller import DashboardController
+
+from views.sidebar import Sidebar
+from views.admin_config import AdminConfigFrame
+from views.admin_form import AdminFormView
 from views.components.table_with_header import TableWithHeaderView
 from views.components.view_with_header import ViewWithHeaderView
 from views.welcome import WelcomeView
@@ -184,10 +187,9 @@ class DashboardFrame(ctk.CTkFrame):
             self.sidebar.update_username()
 
     def _show_admin_form(self, admin_to_edit=None):
+        """Show the admin form for adding/editing administrators"""
         for widget in self.content_container.winfo_children():
             widget.destroy()
-
-        from views.components.admin_form import AdminFormView
 
         # Create the form
         admin_form = AdminFormView(
