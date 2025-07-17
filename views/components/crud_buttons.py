@@ -3,13 +3,15 @@ from views.colors import COLORS
 
 
 class CRUDButtons(ctk.CTkFrame):
-    def __init__(self,
-                 master=None,
-                 table=None,
-                 on_add=None,
-                 on_update=None,
-                 on_delete=None,
-                 **kwargs):
+    def __init__(
+        self,
+        master=None,
+        table=None,
+        on_add=None,
+        on_update=None,
+        on_delete=None,
+        **kwargs
+    ):
         super().__init__(master, fg_color="transparent", **kwargs)
         self.table = table
         self.on_add = on_add
@@ -32,7 +34,7 @@ class CRUDButtons(ctk.CTkFrame):
             height=38,
             anchor="center",
             font=ctk.CTkFont(size=13, weight="bold"),
-            command=self._on_delete_click
+            command=self._on_delete_click,
         )
         self.btn_update = ctk.CTkButton(
             self,
@@ -44,7 +46,7 @@ class CRUDButtons(ctk.CTkFrame):
             height=38,
             anchor="center",
             font=ctk.CTkFont(size=13, weight="bold"),
-            command=self._on_update_click
+            command=self._on_update_click,
         )
         self.btn_add = ctk.CTkButton(
             self,
@@ -56,7 +58,7 @@ class CRUDButtons(ctk.CTkFrame):
             height=38,
             anchor="center",
             font=ctk.CTkFont(size=13, weight="bold"),
-            command=self._on_add_click
+            command=self._on_add_click,
         )
         # Solo empacamos Add por defecto, los otros se empacan según selección
         # Sin padx en el botón Add para alinearlo correctamente con la tabla
@@ -105,13 +107,12 @@ class CRUDButtons(ctk.CTkFrame):
                 cursor="arrow",
             )
 
-        # Empaquetar los botones solo una vez (si no están ya empacados)
+        if not self.btn_add.winfo_ismapped():
+            self.btn_add.pack(side="right", padx=0)
+        if not self.btn_update.winfo_ismapped():
+            self.btn_update.pack(side="right", padx=(8, 8))
         if not self.btn_delete.winfo_ismapped():
             self.btn_delete.pack(side="right", padx=(8, 0))
-        if not self.btn_update.winfo_ismapped():
-            self.btn_update.pack(side="right", padx=(8, 0))
-        if not self.btn_add.winfo_ismapped():
-            self.btn_add.pack(side="right", padx=(8, 0))
 
     def _on_selection_change(self, event=None):
         self._update_buttons_visibility()
@@ -128,15 +129,19 @@ class CRUDButtons(ctk.CTkFrame):
             self.on_add()
 
     def _on_update_click(self):
-        has_selection = (self.table and
-                         hasattr(self.table, 'get_selected_id') and
-                         self.table.get_selected_id() is not None)
+        has_selection = (
+            self.table
+            and hasattr(self.table, "get_selected_id")
+            and self.table.get_selected_id() is not None
+        )
         if self.on_update and has_selection:
             self.on_update()
 
     def _on_delete_click(self):
-        has_selection = (self.table and
-                         hasattr(self.table, 'get_selected_id') and
-                         self.table.get_selected_id() is not None)
+        has_selection = (
+            self.table
+            and hasattr(self.table, "get_selected_id")
+            and self.table.get_selected_id() is not None
+        )
         if self.on_delete and has_selection:
             self.on_delete()
