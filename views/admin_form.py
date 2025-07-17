@@ -49,13 +49,15 @@ class AdminFormView(ctk.CTkFrame):
         )
         title_label.pack(anchor="w")
 
+        if not self.admin_to_edit:
+            desc_text = "Enter the details for the administrator account"
+        else:
+            username = self.controller.get_admin_username_from_cache(self.admin_to_edit)
+            desc_text = f"Modify the {username} account"
+
         desc_label = ctk.CTkLabel(
             title_frame,
-            text=(
-                "Enter the details for the administrator account"
-                if not self.admin_to_edit
-                else "Modify the administrator account details"
-            ),
+            text=desc_text,
             font=ctk.CTkFont(size=14),
             text_color=COLORS["text_secondary"],
         )
@@ -203,6 +205,28 @@ class AdminFormView(ctk.CTkFrame):
             anchor="w",
         )
         role_label.pack(anchor="w", pady=(0, 5))
+
+        # Current role info (only shown when editing)
+        if self.admin_to_edit:
+            admin_data = self.controller.get_admin_by_id_from_cache(self.admin_to_edit)
+            if admin_data:
+                current_role = admin_data.get('role', 'admin')
+                current_info_text = f"Current role: {current_role.title()}"
+
+                # If manager with trainer, add trainer info
+                if current_role == 'manager' and admin_data.get('trainer_id'):
+                    trainer_name = self._get_trainer_name(admin_data.get('trainer_id'))
+                    if trainer_name:
+                        current_info_text += f" (Associated with: {trainer_name})"
+
+                self.current_role_info = ctk.CTkLabel(
+                    form_frame,
+                    text=current_info_text,
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color=COLORS["accent"][0],
+                    anchor="w",
+                )
+                self.current_role_info.pack(anchor="w", pady=(0, 10))
 
         self.role_var = ctk.StringVar(value="admin")
 
@@ -439,6 +463,17 @@ class AdminFormView(ctk.CTkFrame):
             "role": self.role_var.get(),
             "trainer_id": trainer_id,
         }
+
+    def _get_trainer_name(self, trainer_id):
+        """Get trainer name by ID"""
+        try:
+            trainers_data = self.controller.get_trainer_data()
+            for trainer in trainers_data:
+                if trainer[0] == trainer_id:  # Assuming ID is first column
+                    return trainer[1]  # Assuming name is second column
+            return None
+        except Exception:
+            return None
 
     def _toggle_password_visibility(self, field_type="password"):
         """Toggle password visibility between hidden and visible"""

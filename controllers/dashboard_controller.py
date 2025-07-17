@@ -8,7 +8,7 @@ from controllers.crud import is_admin
 from services.data_formatter import DataFormatter
 from controllers.crud import create_admin, update_admin
 from models.admin import Admin
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import difflib
 import unicodedata
 
@@ -196,6 +196,32 @@ class DashboardController:
     def get_user_data(self):
         """Gets formatted user data for the view"""
         return self._get_cached_data("users")
+
+    def get_admin_by_id_from_cache(self, admin_id: str) -> Optional[Dict[str, Any]]:
+        """Get admin data by ID from cached data"""
+        try:
+            admin_data_list = self.get_admin_data()  # Uses cached data
+
+            # Find admin by ID in the cached formatted data
+            for admin_row in admin_data_list:
+                if admin_row[0] == admin_id:  # ID is at index 0
+                    return {
+                        'id': admin_row[0],
+                        'username': admin_row[1],
+                        'role': admin_row[2].lower(),  # Convert "Admin"/"Manager" to lowercase
+                        'created_at': admin_row[3]
+                    }
+            return None
+        except Exception:
+            return None
+
+    def get_admin_username_from_cache(self, admin_id: str) -> str:
+        """Get admin username by ID from cached data"""
+        try:
+            admin_data = self.get_admin_by_id_from_cache(admin_id)
+            return admin_data.get('username', 'administrator') if admin_data else 'administrator'
+        except Exception:
+            return 'administrator'
 
     def get_default_section(self, current_admin):
         """
