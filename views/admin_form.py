@@ -81,16 +81,38 @@ class AdminFormView(ctk.CTkFrame):
         )
         self.password_label.pack(anchor="w", pady=(0, 5))
 
+        # Password input with toggle button container
+        password_container = ctk.CTkFrame(form_frame, fg_color="transparent")
+        password_container.pack(fill="x", pady=(0, 15))
+        password_container.grid_columnconfigure(0, weight=1)
+
         self.password_entry = ctk.CTkEntry(
-            form_frame,
+            password_container,
             height=40,
             placeholder_text="Enter password",
             show="•",
             corner_radius=8
         )
-        self.password_entry.pack(fill="x", pady=(0, 15))
+        self.password_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         # Bind event to validate form when password changes (with debounce)
         self.password_entry.bind('<KeyRelease>', self._on_field_change)
+
+        # Toggle password visibility button
+        self.password_toggle_btn = ctk.CTkButton(
+            password_container,
+            width=40,
+            height=40,
+            text="🙈",
+            font=ctk.CTkFont(size=16),
+            fg_color=("gray80", "gray25"),
+            hover_color=("gray70", "gray35"),
+            corner_radius=8,
+            command=self._toggle_password_visibility
+        )
+        self.password_toggle_btn.grid(row=0, column=1, sticky="e")
+
+        # Track password visibility state
+        self.password_visible = False
 
         # Repeat password field
         repeat_password_label = ctk.CTkLabel(
@@ -100,6 +122,39 @@ class AdminFormView(ctk.CTkFrame):
             anchor="w"
         )
         repeat_password_label.pack(anchor="w", pady=(0, 5))
+
+        # Repeat password input with toggle button container
+        repeat_password_container = ctk.CTkFrame(form_frame, fg_color="transparent")
+        repeat_password_container.pack(fill="x", pady=(0, 15))
+        repeat_password_container.grid_columnconfigure(0, weight=1)
+
+        self.repeat_password_entry = ctk.CTkEntry(
+            repeat_password_container,
+            height=40,
+            placeholder_text="Repeat password",
+            show="•",
+            corner_radius=8
+        )
+        self.repeat_password_entry.grid(row=0, column=0, sticky="ew", padx=(0, 5))
+        # Bind event to validate form when repeat password changes (with debounce)
+        self.repeat_password_entry.bind('<KeyRelease>', self._on_field_change)
+
+        # Toggle repeat password visibility button
+        self.repeat_password_toggle_btn = ctk.CTkButton(
+            repeat_password_container,
+            width=40,
+            height=40,
+            text="🙈",
+            font=ctk.CTkFont(size=16),
+            fg_color=("gray80", "gray25"),
+            hover_color=("gray70", "gray35"),
+            corner_radius=8,
+            command=self._toggle_repeat_password_visibility
+        )
+        self.repeat_password_toggle_btn.grid(row=0, column=1, sticky="e")
+
+        # Track repeat password visibility state
+        self.repeat_password_visible = False
 
         # Error message for password mismatch (initially hidden)
         self.password_error_label = ctk.CTkLabel(
@@ -130,17 +185,6 @@ class AdminFormView(ctk.CTkFrame):
             anchor="w"
         )
         # Don't pack initially - will be shown/hidden based on validation
-
-        self.repeat_password_entry = ctk.CTkEntry(
-            form_frame,
-            height=40,
-            placeholder_text="Repeat password",
-            show="•",
-            corner_radius=8
-        )
-        self.repeat_password_entry.pack(fill="x", pady=(0, 15))
-        # Bind event to validate form when repeat password changes (with debounce)
-        self.repeat_password_entry.bind('<KeyRelease>', self._on_field_change)
 
         # Role selection
         role_label = ctk.CTkLabel(
@@ -382,3 +426,29 @@ class AdminFormView(ctk.CTkFrame):
             'role': self.role_var.get(),
             'trainer_id': trainer_id
         }
+
+    def _toggle_password_visibility(self):
+        """Toggle password visibility between hidden and visible"""
+        if self.password_visible:
+            # Hide password
+            self.password_entry.configure(show="•")
+            self.password_toggle_btn.configure(text="🙈")
+            self.password_visible = False
+        else:
+            # Show password
+            self.password_entry.configure(show="")
+            self.password_toggle_btn.configure(text="🤫")
+            self.password_visible = True
+
+    def _toggle_repeat_password_visibility(self):
+        """Toggle repeat password visibility between hidden and visible"""
+        if self.repeat_password_visible:
+            # Hide password
+            self.repeat_password_entry.configure(show="•")
+            self.repeat_password_toggle_btn.configure(text="🙈")
+            self.repeat_password_visible = False
+        else:
+            # Show password
+            self.repeat_password_entry.configure(show="")
+            self.repeat_password_toggle_btn.configure(text="🤫")
+            self.repeat_password_visible = True
