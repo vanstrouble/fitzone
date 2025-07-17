@@ -6,7 +6,7 @@ and coordination between the model (data) and the view (UI).
 
 from controllers.crud import is_admin
 from services.data_formatter import DataFormatter
-from controllers.crud import create_admin
+from controllers.crud import create_admin, update_admin
 from models.admin import Admin
 from typing import List, Dict, Any
 import difflib
@@ -212,9 +212,9 @@ class DashboardController:
         """Extracts the username from a configuration section"""
         return section_name.split(" ", 1)[1]
 
-    def create_admin_data(self, admin_data: Dict[str, Any]) -> Dict[str, Any]:
+    def save_admin_data(self, admin_data: Dict[str, Any], admin_form) -> Dict[str, Any]:
         """
-        Create a new admin using the CRUD function.
+        Create or update an admin based on whether admin_form has admin_to_edit.
         Returns a dictionary with success status and message.
         """
         try:
@@ -225,23 +225,44 @@ class DashboardController:
                 role=admin_data.get("role", "admin")
             )
 
-            # Use CRUD function directly
-            created_admin = create_admin(admin)
+            # Check if we're updating (admin_form has admin_to_edit)
+            if admin_form.admin_to_edit:
 
-            if created_admin:
-                # Invalidate cache after successful creation
-                self.invalidate_cache("admins")
-                return {
-                    "success": True,
-                    "message": f"Administrator '{admin.username}' created successfully"
-                }
+                # Set the ID for update
+                admin.unique_id = admin_form.admin_to_edit
+
+                success = update_admin(admin)
+
+                if success:
+                    # Invalidate cache after successful update
+                    self.invalidate_cache("admins")
+                    return {
+                        "success": True,
+                        "message": f"Administrator '{admin.username}' updated successfully"
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"Failed to update administrator '{admin.username}'"
+                    }
             else:
-                return {
-                    "success": False,
-                    "message": f"Username '{admin.username}' already exists or creation failed"
-                }
+                # Create new admin
+                created_admin = create_admin(admin)
+
+                if created_admin:
+                    # Invalidate cache after successful creation
+                    self.invalidate_cache("admins")
+                    return {
+                        "success": True,
+                        "message": f"Administrator '{admin.username}' created successfully"
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "message": f"Username '{admin.username}' already exists or creation failed"
+                    }
         except Exception as e:
             return {
                 "success": False,
-                "message": f"Error creating admin: {str(e)}"
+                "message": f"Error saving admin: {str(e)}"
             }

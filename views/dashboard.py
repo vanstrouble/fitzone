@@ -113,7 +113,7 @@ class DashboardFrame(ctk.CTkFrame):
             controller=self.controller,
             crud_callbacks={
                 'on_add': lambda: self._show_admin_form(),
-                'on_update': lambda: self._show_admin_form(self.admin_view.table.get_selected_id())
+                'on_update': self._handle_admin_update
             }
         )
         self.admin_view.pack(fill="both", expand=True, padx=10, pady=10)
@@ -191,20 +191,20 @@ class DashboardFrame(ctk.CTkFrame):
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
-        # Create the form
-        admin_form = AdminFormView(
+        # Create the form and store reference
+        self.current_admin_form = AdminFormView(
             self.content_container,
             on_save=self._handle_admin_save,
             on_cancel=self._handle_admin_cancel,
             admin_to_edit=admin_to_edit
         )
-        admin_form.pack(fill="both", expand=True, padx=10, pady=10)
+        self.current_admin_form.pack(fill="both", expand=True, padx=10, pady=10)
 
     def _handle_admin_save(self, admin_data):
         """Handle saving admin data through the controller"""
         try:
-            # Use the specific create method for new admins
-            result = self.controller.create_admin_data(admin_data)
+            # Pass the form reference to the controller so it can check admin_to_edit
+            result = self.controller.save_admin_data(admin_data, self.current_admin_form)
 
             if result["success"]:
                 print(result["message"])
@@ -220,3 +220,9 @@ class DashboardFrame(ctk.CTkFrame):
     def _handle_admin_cancel(self):
         # Return to the admins table
         self._show_admins_table()
+
+    def _handle_admin_update(self):
+        """Handle admin update by getting selected ID and showing form with data"""
+        selected_id = self.admin_view.table.get_selected_id()
+        if selected_id:
+            self._show_admin_form(admin_to_edit=selected_id)
