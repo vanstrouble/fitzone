@@ -43,7 +43,7 @@ class AdminFormView(ctk.CTkFrame):
         title_label = ctk.CTkLabel(
             title_frame,
             text=(
-                "Add Administrator" if not self.admin_to_edit else "Edit Administrator"
+                "Add Administrator" if not self.admin_to_edit else "Update Administrator"
             ),
             font=ctk.CTkFont(size=24, weight="bold"),
         )
@@ -51,7 +51,11 @@ class AdminFormView(ctk.CTkFrame):
 
         desc_label = ctk.CTkLabel(
             title_frame,
-            text="Enter the details for the administrator account",
+            text=(
+                "Enter the details for the administrator account"
+                if not self.admin_to_edit
+                else "Modify the administrator account details"
+            ),
             font=ctk.CTkFont(size=14),
             text_color=COLORS["text_secondary"],
         )
@@ -249,10 +253,6 @@ class AdminFormView(ctk.CTkFrame):
         # Initially disable save button
         self.form_buttons.set_save_enabled(False)
 
-        # If editing, populate fields
-        if self.admin_to_edit:
-            self._populate_fields()
-
     def _on_field_change(self, event=None):
         """Handle field changes with debounce - wait 300ms before validating"""
         # Cancel previous timer if it exists
@@ -397,21 +397,6 @@ class AdminFormView(ctk.CTkFrame):
             return False, "Password must contain at least one special character"
 
         return True, ""
-
-    def _populate_fields(self):
-        if self.admin_to_edit:
-            # Assuming admin_to_edit is a dict or object with username and role
-            if hasattr(self.admin_to_edit, "username"):
-                self.username_entry.insert(0, self.admin_to_edit.username)
-                self.role_var.set(self.admin_to_edit.role)
-            elif isinstance(self.admin_to_edit, dict):
-                if "username" in self.admin_to_edit:
-                    self.username_entry.insert(0, self.admin_to_edit["username"])
-                if "role" in self.admin_to_edit:
-                    self.role_var.set(self.admin_to_edit["role"])
-
-            # Validate form after populating fields
-            self._validate_form()
 
     def _on_role_change(self):
         """Handle role change - show/hide trainer selection and update table"""
