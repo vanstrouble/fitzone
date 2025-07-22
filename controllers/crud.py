@@ -408,11 +408,26 @@ def create_admin(admin):
         session.close()
 
 
-def get_admin(username):
-    """Gets an admin by their username"""
+def get_admin_by_username(username):
+    """Gets an admin by their username (for authentication purposes)"""
     session = SessionLocal()
     try:
         admin_db = session.query(AdminDB).filter(AdminDB.username == username).first()
+        if admin_db:
+            return db_to_admin(admin_db)
+        return None
+    except SQLAlchemyError as e:
+        logger.error(f"Error getting admin by username: {str(e)}")
+        return None
+    finally:
+        session.close()
+
+
+def get_admin(unique_id):
+    """Gets an admin by their unique_id"""
+    session = SessionLocal()
+    try:
+        admin_db = session.query(AdminDB).filter(AdminDB.id == unique_id).first()
         if admin_db:
             return db_to_admin(admin_db)
         return None
@@ -582,10 +597,19 @@ def ensure_default_admin_exists():
 
 def authenticate_admin(username, password):
     """Authenticates an admin by username and password"""
-    admin = get_admin(username)
-    if admin and admin.verify_password(password):
-        return admin
-    return None
+    session = SessionLocal()
+    try:
+        admin_db = session.query(AdminDB).filter(AdminDB.username == username).first()
+        if admin_db:
+            admin = db_to_admin(admin_db)
+            if admin.verify_password(password):
+                return admin
+        return None
+    except SQLAlchemyError as e:
+        logger.error(f"Error authenticating admin: {str(e)}")
+        return None
+    finally:
+        session.close()
 
 
 def is_admin(username):
@@ -628,7 +652,7 @@ if __name__ == "__main__":
         exit(1)
 
     # 3. Attempt to retrieve the admin
-    retrieved_admin = get_admin("test_admin")
+    retrieved_admin = get_admin(created_admin.unique_id)
     if retrieved_admin:
         print("✅ Admin successfully retrieved")
     else:
