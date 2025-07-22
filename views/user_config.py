@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from controllers.crud import get_admin, update_admin
+from controllers.crud import get_admin_by_username, update_admin
 from views.colors import COLORS
 from utils.validators import AdminValidator
 from utils.ui_styles import AdminConfigStyles
@@ -28,7 +28,7 @@ class UserConfigFrame(ctk.CTkFrame):
         form_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         form_frame.grid_columnconfigure(0, weight=1)
 
-        admin = get_admin(self.current_admin.username)
+        admin = get_admin_by_username(self.current_admin.username)
         if admin:
             self._create_profile_section(form_frame, admin)
             self._create_editable_section(form_frame, admin)
@@ -303,7 +303,7 @@ class UserConfigFrame(ctk.CTkFrame):
 
     def _refresh_profile_data(self):
         """Refresh profile section with updated data"""
-        admin = get_admin(self.current_admin.username)
+        admin = get_admin_by_username(self.current_admin.username)
         if admin:
             for widget in self.winfo_children():
                 if isinstance(widget, ctk.CTkFrame):
@@ -411,7 +411,7 @@ class UserConfigFrame(ctk.CTkFrame):
                 return
 
             # Update admin
-            admin = get_admin(self.current_admin.username)
+            admin = get_admin_by_username(self.current_admin.username)
             if not admin:
                 messagebox.showerror("Error", "Could not retrieve admin information")
                 return
