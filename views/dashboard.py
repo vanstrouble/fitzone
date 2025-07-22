@@ -4,7 +4,7 @@ from views.colors import COLORS
 from controllers.dashboard_controller import DashboardController
 
 from views.sidebar import Sidebar
-from views.admin_config import AdminConfigFrame
+from views.user_config import UserConfigFrame
 from views.admin_form import AdminFormView
 from views.components.table_with_header import TableWithHeaderView
 from views.components.view_with_header import ViewWithHeaderView
@@ -166,7 +166,7 @@ class DashboardFrame(ctk.CTkFrame):
         config_view.pack(fill="both", expand=True, padx=10, pady=10)
 
         if username == self.current_admin.username:
-            admin_config = AdminConfigFrame(
+            admin_config = UserConfigFrame(
                 config_view.content_area,
                 current_admin=self.current_admin,
                 update_sidebar_callback=self.update_sidebar

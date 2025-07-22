@@ -8,7 +8,7 @@ import tkinter.messagebox as messagebox
 from datetime import datetime
 
 
-class AdminConfigFrame(ctk.CTkFrame):
+class UserConfigFrame(ctk.CTkFrame):
     def __init__(self, master, current_admin, update_sidebar_callback=None):
         super().__init__(master, fg_color="transparent", corner_radius=0)
         self.current_admin = current_admin
