@@ -4,9 +4,8 @@ Applies the MVC pattern correctly: the controller handles business logic
 and coordination between the model (data) and the view (UI).
 """
 
-from controllers.crud import is_admin
+from controllers.crud import create_admin, update_admin, is_admin
 from services.data_formatter import DataFormatter
-from controllers.crud import create_admin, update_admin
 from models.admin import Admin
 from typing import List, Dict, Any, Optional
 import difflib
@@ -197,28 +196,57 @@ class DashboardController:
         """Gets formatted user data for the view"""
         return self._get_cached_data("users")
 
-    def get_admin_by_id_from_cache(self, admin_id: str) -> Optional[Dict[str, Any]]:
-        """Get admin data by ID from cached data"""
-        try:
-            admin_data_list = self.get_admin_data()  # Uses cached data
+    def get_admin_data_unified(
+        self, admin_id: str, from_cache: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Unified method to get admin data by ID from cache or database
 
-            # Find admin by ID in the cached formatted data
-            for admin_row in admin_data_list:
-                if admin_row[0] == admin_id:  # ID is at index 0
-                    return {
-                        'id': admin_row[0],
-                        'username': admin_row[1],
-                        'role': admin_row[2].lower(),  # Convert "Admin"/"Manager" to lowercase
-                        'created_at': admin_row[3]
-                    }
-            return None
+        Args:
+            admin_id: Admin ID
+            from_cache: If True, use cached data; if False, query database directly
+
+        Returns:
+            Dict with admin data or None if not found
+        """
+        try:
+            if from_cache:
+                # Use cached data (more efficient)
+                admin_data_list = self.get_admin_data()  # Uses cached data
+
+                # Find admin by ID in the cached formatted data
+                for admin_row in admin_data_list:
+                    if admin_row[0] == admin_id:  # ID is at index 0
+                        return {
+                            'id': admin_row[0],
+                            'username': admin_row[1],
+                            'role': admin_row[2].lower(),  # Convert "Admin"/"Manager" to lowercase
+                            'created_at': admin_row[3],
+                            'unique_id': admin_row[0]  # Add unique_id for consistency
+                        }
+                return None
+            else:
+                # Query database directly (fresh data)
+                from controllers.crud import get_admin
+                admin = get_admin(admin_id)
+
+                if not admin:
+                    return None
+
+                return {
+                    'id': admin.unique_id,
+                    'username': admin.username,
+                    'role': admin.role,
+                    'created_at': admin.created_at,
+                    'unique_id': admin.unique_id
+                }
         except Exception:
             return None
 
     def get_admin_username_from_cache(self, admin_id: str) -> str:
         """Get admin username by ID from cached data"""
         try:
-            admin_data = self.get_admin_by_id_from_cache(admin_id)
+            admin_data = self.get_admin_data_unified(admin_id, from_cache=True)
             return admin_data.get('username', 'administrator') if admin_data else 'administrator'
         except Exception:
             return 'administrator'
@@ -238,10 +266,19 @@ class DashboardController:
         """Extracts the username from a configuration section"""
         return section_name.split(" ", 1)[1]
 
-    def save_admin_data(self, admin_data: Dict[str, Any], admin_form) -> Dict[str, Any]:
+    def save_admin_data(self, admin_data: Dict[str, Any], admin_form_or_id=None) -> Dict[str, Any]:
         """
-        Create or update an admin based on whether admin_form has admin_to_edit.
-        Returns a dictionary with success status and message.
+        Create or update an admin based on admin_form_or_id parameter.
+
+        Args:
+            admin_data: Dict with admin data (username, password, role, etc.)
+            admin_form_or_id: Can be:
+                - AdminFormView object (has admin_to_edit attribute) for form operations
+                - String ID for direct profile updates
+                - None for creating new admin
+
+        Returns:
+            Dict with success status and message
         """
         try:
             # Create Admin object from form data
@@ -251,12 +288,20 @@ class DashboardController:
                 role=admin_data.get("role", "admin")
             )
 
-            # Check if we're updating (admin_form has admin_to_edit)
-            if admin_form.admin_to_edit:
+            # Determine if we're updating
+            admin_id_to_update = None
 
-                # Set the ID for update
-                admin.unique_id = admin_form.admin_to_edit
+            if admin_form_or_id:
+                if isinstance(admin_form_or_id, str):
+                    # Direct ID passed (from user_config.py)
+                    admin_id_to_update = admin_form_or_id
+                elif hasattr(admin_form_or_id, 'admin_to_edit') and admin_form_or_id.admin_to_edit:
+                    # Form object with admin_to_edit (from admin_form.py)
+                    admin_id_to_update = admin_form_or_id.admin_to_edit
 
+            if admin_id_to_update:
+                # Update existing admin
+                admin.unique_id = admin_id_to_update
                 success = update_admin(admin)
 
                 if success:
@@ -264,7 +309,8 @@ class DashboardController:
                     self.invalidate_cache("admins")
                     return {
                         "success": True,
-                        "message": f"Administrator '{admin.username}' updated successfully"
+                        "message": f"Administrator '{admin.username}' updated successfully",
+                        "updated_username": admin.username
                     }
                 else:
                     return {
@@ -292,3 +338,9 @@ class DashboardController:
                 "success": False,
                 "message": f"Error saving admin: {str(e)}"
             }
+
+    def refresh_admin_profile(self, admin_id: str) -> Optional[Dict[str, Any]]:
+        """Refresh and get updated admin profile data"""
+        # Invalidate cache to ensure fresh data
+        self.invalidate_cache("admins")
+        return self.get_admin_data_unified(admin_id, from_cache=False)

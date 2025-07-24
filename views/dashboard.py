@@ -167,11 +167,12 @@ class DashboardFrame(ctk.CTkFrame):
 
         if username == self.current_admin.username:
             admin_config = UserConfigFrame(
-                config_view.content_area,
+                self.content_container,
                 current_admin=self.current_admin,
+                controller=self.controller,
                 update_sidebar_callback=self.update_sidebar
             )
-            config_view.add_content(admin_config)
+            admin_config.pack(fill="both", expand=True, padx=10, pady=10)
         else:
             fallback_label = ctk.CTkLabel(
                 config_view.content_area,

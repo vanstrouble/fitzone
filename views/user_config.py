@@ -1,17 +1,18 @@
 import customtkinter as ctk
-from controllers.crud import get_admin_by_username, update_admin
 from views.colors import COLORS
 from utils.validators import AdminValidator
 from utils.ui_styles import AdminConfigStyles
 from utils.ui_components import CircularBadge
+from views.components.form_buttons import FormButtons
 import tkinter.messagebox as messagebox
 from datetime import datetime
 
 
 class UserConfigFrame(ctk.CTkFrame):
-    def __init__(self, master, current_admin, update_sidebar_callback=None):
+    def __init__(self, master, current_admin, controller, update_sidebar_callback=None):
         super().__init__(master, fg_color="transparent", corner_radius=0)
         self.current_admin = current_admin
+        self.controller = controller
         self.edit_mode = False
         self.update_sidebar_callback = update_sidebar_callback
         self._configure_layout()
@@ -28,10 +29,12 @@ class UserConfigFrame(ctk.CTkFrame):
         form_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         form_frame.grid_columnconfigure(0, weight=1)
 
-        admin = get_admin_by_username(self.current_admin.username)
-        if admin:
-            self._create_profile_section(form_frame, admin)
-            self._create_editable_section(form_frame, admin)
+        admin_data = self.controller.get_admin_data_unified(
+            self.current_admin.unique_id, from_cache=False
+        )
+        if admin_data:
+            self._create_profile_section(form_frame, admin_data)
+            self._create_editable_section(form_frame, admin_data)
             self._create_button_section(form_frame)
 
     def _create_profile_section(self, parent, admin):
@@ -69,14 +72,14 @@ class UserConfigFrame(ctk.CTkFrame):
 
         ctk.CTkLabel(
             header_frame,
-            text=admin.username,
+            text=admin.get('username', 'Unknown'),
             font=ctk.CTkFont(size=AdminConfigStyles.TITLE_FONT_SIZE, weight="bold"),
             text_color=COLORS["primary"][0],
         ).pack(anchor="center")
 
         ctk.CTkLabel(
             header_frame,
-            text=f"{str(admin.role).capitalize()} Account",
+            text=f"{str(admin.get('role', 'admin')).capitalize()} Account",
             font=ctk.CTkFont(size=14),
             text_color=("gray60", "gray40"),
         ).pack(anchor="center", pady=(2, 0))
@@ -90,7 +93,7 @@ class UserConfigFrame(ctk.CTkFrame):
         info_frame = ctk.CTkFrame(card, fg_color="transparent")
         info_frame.pack(fill="x", padx=25, pady=(0, 20))
 
-        created_text = self._format_creation_date(admin.created_at)
+        created_text = self._format_creation_date(admin.get('created_at'))
         ctk.CTkLabel(
             info_frame,
             text=f"Member since {created_text}",
@@ -250,7 +253,7 @@ class UserConfigFrame(ctk.CTkFrame):
         self.error_label.grid(row=2, column=0, sticky="w", padx=0, pady=(8, 0))
 
     def _create_button_section(self, parent):
-        """Create button section"""
+        """Create button section using FormButtons component"""
         container = ctk.CTkFrame(parent, fg_color="transparent")
         container.grid(row=2, column=0, sticky="ew", padx=0, pady=(0, 0))
         container.grid_columnconfigure(0, weight=1)
@@ -259,34 +262,34 @@ class UserConfigFrame(ctk.CTkFrame):
         button_container.grid(
             row=0, column=0, padx=AdminConfigStyles.PROFILE_CARD_PADX, pady=0
         )
-        button_container.grid_columnconfigure((0, 1), weight=1)
 
-        # Edit/Save button
-        self.edit_button = ctk.CTkButton(
+        # Use FormButtons component
+        self.form_buttons = FormButtons(
             button_container,
+            on_save=self._handle_save,
+            on_cancel=self._handle_cancel,
+            get_form_data=self._get_form_data,
+            save_text="Update Profile",
+            cancel_text="Cancel"
+        )
+        self.form_buttons.pack(fill="x")
+
+        # Initially hide the form buttons (they'll be shown in edit mode)
+        button_container.grid_remove()
+        self.button_container = button_container
+
+        # Create the edit button (always visible)
+        self.edit_button = ctk.CTkButton(
+            container,
             text="Edit Profile",
-            command=self._toggle_edit_mode,
+            command=self._enter_edit_mode,
             height=AdminConfigStyles.BUTTON_HEIGHT,
             corner_radius=AdminConfigStyles.CONTAINER_RADIUS,
             fg_color=COLORS["primary"],
             hover_color=COLORS["accent"],
             font=ctk.CTkFont(size=14, weight="bold"),
         )
-        self.edit_button.grid(
-            row=0, column=0, sticky="ew", padx=(0, AdminConfigStyles.COMPACT_SPACING)
-        )
-
-        # Cancel button
-        self.cancel_button = ctk.CTkButton(
-            button_container,
-            text="Cancel",
-            command=self._cancel_edit,
-            height=AdminConfigStyles.BUTTON_HEIGHT,
-            corner_radius=AdminConfigStyles.CONTAINER_RADIUS,
-            fg_color=COLORS["danger"][0],
-            hover_color=COLORS["danger"][1],
-            font=ctk.CTkFont(size=14, weight="bold"),
-        )
+        self.edit_button.grid(row=0, column=0, padx=AdminConfigStyles.PROFILE_CARD_PADX, pady=0)
 
     def _format_creation_date(self, created_at):
         """Format creation date for display"""
@@ -303,16 +306,93 @@ class UserConfigFrame(ctk.CTkFrame):
 
     def _refresh_profile_data(self):
         """Refresh profile section with updated data"""
-        admin = get_admin_by_username(self.current_admin.username)
-        if admin:
+        admin_data = self.controller.refresh_admin_profile(self.current_admin.unique_id)
+        if admin_data:
+            # Recreate the form with updated data
             for widget in self.winfo_children():
-                if isinstance(widget, ctk.CTkFrame):
-                    for child in widget.winfo_children():
-                        if child.grid_info().get("row") == 0:
-                            child.destroy()
-                            break
-                    self._create_profile_section(widget, admin)
-                    break
+                widget.destroy()
+            self._create_form()
+
+    def _get_form_data(self):
+        """Get form data for saving"""
+        password = self.password_entry.get().strip()
+        return {
+            'username': self.username_entry.get().strip() or self.current_admin.username,
+            'password': password if password else None
+        }
+
+    def _handle_save(self, form_data):
+        """Handle save button click from FormButtons"""
+        try:
+            self._clear_error_states()
+
+            new_username = form_data.get('username', '').strip()
+            new_password = form_data.get('password', '')
+            confirm_password = self.confirm_password_entry.get()
+
+            # Validate inputs
+            if not self._validate_inputs(new_username, new_password, confirm_password):
+                return
+
+            # Use controller's unified save method - pass admin ID for update
+            result = self.controller.save_admin_data(form_data, self.current_admin.unique_id)
+
+            if result["success"]:
+                # Update current admin username if it changed
+                if result.get("updated_username"):
+                    self.current_admin.username = result["updated_username"]
+
+                self._handle_successful_update()
+            else:
+                self._show_notification_badge(success=False)
+                messagebox.showerror("Error", result["message"])
+
+        except Exception as e:
+            self._show_notification_badge(success=False)
+            messagebox.showerror("Error", f"Update error: {str(e)}")
+
+    def _handle_cancel(self):
+        """Handle cancel button click from FormButtons"""
+        self._clear_error_states()
+        self._clear_all_fields()
+        self._exit_edit_mode()
+
+    def _enter_edit_mode(self):
+        """Enter edit mode"""
+        self.edit_mode = True
+        self.editable_frame.grid()
+        self._enable_entries()
+
+        # Hide edit button and show form buttons
+        self.edit_button.grid_remove()
+        self.button_container.grid()
+
+    def _exit_edit_mode(self):
+        """Exit edit mode and return to view mode"""
+        self.edit_mode = False
+        self.editable_frame.grid_remove()
+        self._disable_entries()
+
+        # Show edit button and hide form buttons
+        self.button_container.grid_remove()
+        self.edit_button.grid()
+
+    def _handle_successful_update(self):
+        """Handle successful update"""
+        self._clear_password_fields()
+
+        # First exit edit mode to hide the editing section
+        self._exit_edit_mode()
+
+        # Then refresh profile data
+        self._refresh_profile_data()
+
+        # Update sidebar if callback is provided
+        if self.update_sidebar_callback:
+            self.update_sidebar_callback()
+
+        # Now show success notification badge just below the edit button
+        self.after(100, lambda: self._show_notification_badge(success=True))
 
     def _show_notification_badge(self, success=True):
         """Show a notification badge indicating success or error
@@ -342,16 +422,6 @@ class UserConfigFrame(ctk.CTkFrame):
         # Show the badge and bring it to the front
         badge.show()
 
-    def _show_error(self, message, field_type="general"):
-        """Display error message with visual feedback"""
-        self.error_label.configure(text=message)
-
-        if field_type == "username":
-            self.username_entry.configure(border_color=COLORS["danger"][0])
-        elif field_type == "password":
-            self.password_entry.configure(border_color=COLORS["danger"][0])
-            self.confirm_password_entry.configure(border_color=COLORS["danger"][0])
-
     def _clear_error_states(self):
         """Clear all error states and messages"""
         self.error_label.configure(text="")
@@ -361,23 +431,6 @@ class UserConfigFrame(ctk.CTkFrame):
             self.confirm_password_entry,
         ]:
             entry.configure(border_color="gray")
-
-    def _toggle_edit_mode(self):
-        """Toggle between view and edit modes"""
-        if not self.edit_mode:
-            self._enter_edit_mode()
-        else:
-            self._save_changes()
-
-    def _enter_edit_mode(self):
-        """Enter edit mode"""
-        self.edit_mode = True
-        self.editable_frame.grid()
-        self._enable_entries()
-        self.edit_button.configure(text="Save", command=self._save_changes)
-        self.cancel_button.grid(
-            row=0, column=1, sticky="ew", padx=(AdminConfigStyles.COMPACT_SPACING, 0)
-        )
 
     def _enable_entries(self):
         """Enable all entry fields"""
@@ -396,37 +449,6 @@ class UserConfigFrame(ctk.CTkFrame):
             self.confirm_password_entry,
         ]:
             entry.configure(state="disabled")
-
-    def _save_changes(self):
-        """Save form changes"""
-        try:
-            self._clear_error_states()
-
-            new_username = self.username_entry.get().strip()
-            new_password = self.password_entry.get()
-            confirm_password = self.confirm_password_entry.get()
-
-            # Validate inputs
-            if not self._validate_inputs(new_username, new_password, confirm_password):
-                return
-
-            # Update admin
-            admin = get_admin_by_username(self.current_admin.username)
-            if not admin:
-                messagebox.showerror("Error", "Could not retrieve admin information")
-                return
-
-            self._update_admin_data(admin, new_username, new_password)
-
-            if update_admin(admin):
-                self._handle_successful_update(new_username)
-            else:
-                self._show_notification_badge(success=False)
-                messagebox.showerror("Error", "Error updating data")
-
-        except Exception as e:
-            self._show_notification_badge(success=False)
-            messagebox.showerror("Error", f"Update error: {str(e)}")
 
     def _validate_inputs(self, username, password, confirm_password):
         """Validate all form inputs"""
@@ -455,40 +477,10 @@ class UserConfigFrame(ctk.CTkFrame):
 
         return True
 
-    def _update_admin_data(self, admin, username, password):
-        """Update admin object with new data"""
-        admin.username = username or self.current_admin.username
-        if password.strip():
-            admin.set_password(password)
-
-    def _handle_successful_update(self, new_username):
-        """Handle successful update"""
-        self.current_admin.username = new_username
-        self._clear_password_fields()
-
-        # First exit edit mode to hide the editing section
-        self._exit_edit_mode()
-
-        # Then refresh profile data
-        self._refresh_profile_data()
-
-        # Update sidebar if callback is provided
-        if self.update_sidebar_callback:
-            self.update_sidebar_callback()
-
-        # Now show success notification badge just below the edit button
-        self.after(100, lambda: self._show_notification_badge(success=True))
-
     def _clear_password_fields(self):
         """Clear password fields for security"""
         self.password_entry.delete(0, "end")
         self.confirm_password_entry.delete(0, "end")
-
-    def _cancel_edit(self):
-        """Cancel edit mode"""
-        self._clear_error_states()
-        self._clear_all_fields()
-        self._exit_edit_mode()
 
     def _clear_all_fields(self):
         """Clear all form fields"""
@@ -499,10 +491,12 @@ class UserConfigFrame(ctk.CTkFrame):
         ]:
             entry.delete(0, "end")
 
-    def _exit_edit_mode(self):
-        """Exit edit mode and return to view mode"""
-        self.edit_mode = False
-        self.editable_frame.grid_remove()
-        self._disable_entries()
-        self.edit_button.configure(text="Edit Profile", command=self._toggle_edit_mode)
-        self.cancel_button.grid_remove()
+    def _show_error(self, message, field_type="general"):
+        """Display error message with visual feedback"""
+        self.error_label.configure(text=message)
+
+        if field_type == "username":
+            self.username_entry.configure(border_color=COLORS["danger"][0])
+        elif field_type == "password":
+            self.password_entry.configure(border_color=COLORS["danger"][0])
+            self.confirm_password_entry.configure(border_color=COLORS["danger"][0])

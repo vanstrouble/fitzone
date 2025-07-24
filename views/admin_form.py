@@ -208,7 +208,7 @@ class AdminFormView(ctk.CTkFrame):
 
         # Current role info (only shown when editing)
         if self.admin_to_edit:
-            admin_data = self.controller.get_admin_by_id_from_cache(self.admin_to_edit)
+            admin_data = self.controller.get_admin_data_unified(self.admin_to_edit, from_cache=True)
             if admin_data:
                 current_role = admin_data.get('role', 'admin')
                 current_info_text = f"Current role: {current_role.title()}"
