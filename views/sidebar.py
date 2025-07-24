@@ -1,5 +1,4 @@
 import customtkinter as ctk
-from controllers.crud import is_admin
 from views.colors import COLORS
 
 
@@ -85,12 +84,10 @@ class Sidebar(ctk.CTkFrame):
     def _create_navigation_buttons(self, current_admin):
         next_button_row = 1
 
-        # Admin button (conditional)
-        if current_admin and is_admin(current_admin.username):
-            self._create_button("Admins", next_button_row)
-            next_button_row += 1
+        # All navigation buttons for admin users
+        self._create_button("Admins", next_button_row)
+        next_button_row += 1
 
-        # Other buttons
         self._create_button("Trainers", next_button_row)
         next_button_row += 1
 
