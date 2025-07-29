@@ -158,14 +158,8 @@ class DashboardFrame(ctk.CTkFrame):
         for widget in self.content_container.winfo_children():
             widget.destroy()
 
-        config_view = ViewWithHeaderView(
-            self.content_container,
-            title="Account Information"
-        )
-        # Add padding to prevent child from reaching container edges
-        config_view.pack(fill="both", expand=True, padx=10, pady=10)
-
         if username == self.current_admin.username:
+            # Crear UserConfigFrame directamente sin ViewWithHeaderView
             admin_config = UserConfigFrame(
                 self.content_container,
                 current_admin=self.current_admin,
@@ -174,6 +168,13 @@ class DashboardFrame(ctk.CTkFrame):
             )
             admin_config.pack(fill="both", expand=True, padx=10, pady=10)
         else:
+            # Solo usar ViewWithHeaderView para casos de fallback
+            config_view = ViewWithHeaderView(
+                self.content_container,
+                title="Account Information"
+            )
+            config_view.pack(fill="both", expand=True, padx=10, pady=10)
+
             fallback_label = ctk.CTkLabel(
                 config_view.content_area,
                 text=f"Configuration not available for user: {username}",
