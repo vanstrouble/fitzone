@@ -221,27 +221,30 @@ class DashboardController:
                 for admin_row in admin_data_list:
                     if str(admin_row[0]) == admin_id_str:  # ID is at index 0
                         return {
-                            'id': admin_row[0],
-                            'username': admin_row[1],
-                            'role': admin_row[2].lower(),  # Convert "Admin"/"Manager" to lowercase
-                            'created_at': admin_row[3],
-                            'unique_id': admin_row[0]  # Add unique_id for consistency
+                            "id": admin_row[0],
+                            "username": admin_row[1],
+                            "role": admin_row[
+                                2
+                            ].lower(),  # Convert "Admin"/"Manager" to lowercase
+                            "created_at": admin_row[3],
+                            "unique_id": admin_row[0],  # Add unique_id for consistency
                         }
                 return None
             else:
                 # Query database directly (fresh data)
                 from controllers.crud import get_admin
+
                 admin = get_admin(admin_id)
 
                 if not admin:
                     return None
 
                 return {
-                    'id': admin.unique_id,
-                    'username': admin.username,
-                    'role': admin.role,
-                    'created_at': admin.created_at,
-                    'unique_id': admin.unique_id
+                    "id": admin.unique_id,
+                    "username": admin.username,
+                    "role": admin.role,
+                    "created_at": admin.created_at,
+                    "unique_id": admin.unique_id,
                 }
         except Exception:
             return None
@@ -250,9 +253,13 @@ class DashboardController:
         """Get admin username by ID from cached data"""
         try:
             admin_data = self.get_admin_data_unified(admin_id, from_cache=True)
-            return admin_data.get('username', 'administrator') if admin_data else 'administrator'
+            return (
+                admin_data.get("username", "administrator")
+                if admin_data
+                else "administrator"
+            )
         except Exception:
-            return 'administrator'
+            return "administrator"
 
     def get_default_section(self, current_admin):
         """
@@ -269,7 +276,9 @@ class DashboardController:
         """Extracts the username from a configuration section"""
         return section_name.split(" ", 1)[1]
 
-    def _handle_database_error(self, error: Exception, username: str = "") -> Dict[str, Any]:
+    def _handle_database_error(
+        self, error: Exception, username: str = ""
+    ) -> Dict[str, Any]:
         """
         Handle database errors and return appropriate error messages
 
@@ -287,30 +296,29 @@ class DashboardController:
             return {
                 "success": False,
                 "message": f"Username '{username}' is already taken. "
-                           f"Please choose a different username."
+                f"Please choose a different username.",
             }
         elif "UNIQUE constraint failed" in error_message:
             return {
                 "success": False,
-                "message": "This information is already in use. Please check your input."
+                "message": "This information is already in use. Please check your input.",
             }
         elif "NOT NULL constraint failed" in error_message:
             return {
                 "success": False,
-                "message": "Required information is missing. Please fill all required fields."
+                "message": "Required information is missing. Please fill all required fields.",
             }
         elif "Admin not found" in error_message or "not found" in error_message:
             return {
                 "success": False,
-                "message": "The administrator could not be found."
+                "message": "The administrator could not be found.",
             }
         else:
-            return {
-                "success": False,
-                "message": f"Database error: {error_message}"
-            }
+            return {"success": False, "message": f"Database error: {error_message}"}
 
-    def save_admin_data(self, admin_data: Dict[str, Any], admin_form_or_id=None) -> Dict[str, Any]:
+    def save_admin_data(
+        self, admin_data: Dict[str, Any], admin_form_or_id=None
+    ) -> Dict[str, Any]:
         """
         Create or update an admin based on admin_form_or_id parameter.
 
@@ -332,7 +340,10 @@ class DashboardController:
                 if isinstance(admin_form_or_id, (str, int)):
                     # Direct ID passed (from user_config.py) - can be string or int
                     admin_id_to_update = str(admin_form_or_id)
-                elif hasattr(admin_form_or_id, 'admin_to_edit') and admin_form_or_id.admin_to_edit:
+                elif (
+                    hasattr(admin_form_or_id, "admin_to_edit")
+                    and admin_form_or_id.admin_to_edit
+                ):
                     # Form object with admin_to_edit (from admin_form.py)
                     admin_id_to_update = admin_form_or_id.admin_to_edit
 
@@ -365,8 +376,8 @@ class DashboardController:
                 return {
                     "success": True,
                     "message": f"Administrator '{existing_admin.username}' "
-                               f"updated successfully",
-                    "updated_username": existing_admin.username
+                    f"updated successfully",
+                    "updated_username": existing_admin.username,
                 }
             else:
                 # CREATE NEW ADMIN
@@ -374,13 +385,13 @@ class DashboardController:
                 if not admin_data.get("password"):
                     return {
                         "success": False,
-                        "message": "Password is required for new administrators"
+                        "message": "Password is required for new administrators",
                     }
 
                 admin = Admin(
                     username=admin_data.get("username"),
                     password=admin_data.get("password"),
-                    role=admin_data.get("role", "admin")
+                    role=admin_data.get("role", "admin"),
                 )
 
                 # Attempt to create - CRUD will raise exceptions on errors
@@ -390,7 +401,7 @@ class DashboardController:
                 self.invalidate_cache("admins")
                 return {
                     "success": True,
-                    "message": f"Administrator '{admin.username}' created successfully"
+                    "message": f"Administrator '{admin.username}' created successfully",
                 }
         except Exception as e:
             # Use the centralized error handler
@@ -402,3 +413,34 @@ class DashboardController:
         # Invalidate cache to ensure fresh data
         self.invalidate_cache("admins")
         return self.get_admin_data_unified(admin_id, from_cache=False)
+
+    def can_create_admin_accounts(self, current_admin) -> bool:
+        """
+        Business logic: Check if current user can create admin accounts
+
+        Args:
+            current_admin: Current admin object from session
+
+        Returns:
+            True if user can create admin accounts, False otherwise
+        """
+        if not current_admin:
+            return False
+
+        # Get admin ID from current_admin object
+        admin_id = getattr(current_admin, "unique_id", None) or getattr(
+            current_admin, "id", None
+        )
+
+        if not admin_id:
+            return False
+
+        # Use existing method to get admin data
+        admin_data = self.get_admin_data_unified(admin_id, from_cache=True)
+        if not admin_data:
+            return False
+
+        role = admin_data.get("role", "").lower().strip()
+        is_admin = role == "admin"
+
+        return is_admin

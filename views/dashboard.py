@@ -41,10 +41,7 @@ class DashboardFrame(ctk.CTkFrame):
     def _create_content_frame(self):
         # Outer frame with no radius (fills the space)
         self.content_frame = ctk.CTkFrame(
-            self,
-            corner_radius=0,
-            fg_color=COLORS["neutral_bg"],
-            border_width=0
+            self, corner_radius=0, fg_color=COLORS["neutral_bg"], border_width=0
         )
         self.content_frame.grid(row=0, column=1, sticky="nsew", padx=0, pady=0)
         self.content_frame.grid_columnconfigure(0, weight=1)
@@ -74,7 +71,9 @@ class DashboardFrame(ctk.CTkFrame):
 
     def show_content(self, section_name):
         if self.controller.should_show_configuration(section_name):
-            username = self.controller.extract_username_from_config_section(section_name)
+            username = self.controller.extract_username_from_config_section(
+                section_name
+            )
             self._show_user_configuration(username)
         else:
             for widget in self.content_container.winfo_children():
@@ -112,9 +111,9 @@ class DashboardFrame(ctk.CTkFrame):
             table_name="Admins",
             controller=self.controller,
             crud_callbacks={
-                'on_add': lambda: self._show_admin_form(),
-                'on_update': self._handle_admin_update
-            }
+                "on_add": lambda: self._show_admin_form(),
+                "on_update": self._handle_admin_update,
+            },
         )
         self.admin_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -132,7 +131,7 @@ class DashboardFrame(ctk.CTkFrame):
             data=trainers_data,
             column_weights=[1, 3, 2, 2],
             table_name="Trainers",
-            controller=self.controller
+            controller=self.controller,
         )
         self.trainer_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -150,7 +149,7 @@ class DashboardFrame(ctk.CTkFrame):
             data=users_data,
             column_weights=[1, 3, 2, 2, 2],
             table_name="Users",
-            controller=self.controller
+            controller=self.controller,
         )
         self.user_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -164,14 +163,13 @@ class DashboardFrame(ctk.CTkFrame):
                 self.content_container,
                 current_admin=self.current_admin,
                 controller=self.controller,
-                update_sidebar_callback=self.update_sidebar
+                update_sidebar_callback=self.update_sidebar,
             )
             admin_config.pack(fill="both", expand=True, padx=10, pady=10)
         else:
             # Solo usar ViewWithHeaderView para casos de fallback
             config_view = ViewWithHeaderView(
-                self.content_container,
-                title="Account Information"
+                self.content_container, title="Account Information"
             )
             config_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -198,7 +196,8 @@ class DashboardFrame(ctk.CTkFrame):
             self.content_container,
             on_save=self._handle_admin_save,
             on_cancel=self._handle_admin_cancel,
-            admin_to_edit=admin_to_edit
+            admin_to_edit=admin_to_edit,
+            current_admin=self.current_admin,  # ✅ Pass current admin for security
         )
         self.current_admin_form.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -206,7 +205,9 @@ class DashboardFrame(ctk.CTkFrame):
         """Handle saving admin data through the controller"""
         try:
             # Pass the form reference to the controller so it can check admin_to_edit
-            result = self.controller.save_admin_data(admin_data, self.current_admin_form)
+            result = self.controller.save_admin_data(
+                admin_data, self.current_admin_form
+            )
 
             if result["success"]:
                 print(result["message"])

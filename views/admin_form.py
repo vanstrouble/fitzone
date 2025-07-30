@@ -14,11 +14,19 @@ class AdminFormView(ctk.CTkFrame):
     USERNAME_PATTERN = r"^[a-zA-Z0-9_-]+$"
     PASSWORD_SPECIAL_CHARS = r'[!@#$%^&*(),.?":{}|<>]'
 
-    def __init__(self, master, on_save=None, on_cancel=None, admin_to_edit=None):
+    def __init__(
+        self,
+        master,
+        on_save=None,
+        on_cancel=None,
+        admin_to_edit=None,
+        current_admin=None,
+    ):
         super().__init__(master, fg_color=("white", "gray17"), corner_radius=15)
         self.on_save = on_save
         self.on_cancel = on_cancel
         self.admin_to_edit = admin_to_edit
+        self.current_admin = current_admin  # Add current admin for security checks
 
         # Controller for trainer data
         self.controller = DashboardController()
@@ -43,7 +51,9 @@ class AdminFormView(ctk.CTkFrame):
         title_label = ctk.CTkLabel(
             title_frame,
             text=(
-                "Add Administrator" if not self.admin_to_edit else "Update Administrator"
+                "Add Administrator"
+                if not self.admin_to_edit
+                else "Update Administrator"
             ),
             font=ctk.CTkFont(size=24, weight="bold"),
         )
@@ -208,14 +218,16 @@ class AdminFormView(ctk.CTkFrame):
 
         # Current role info (only shown when editing)
         if self.admin_to_edit:
-            admin_data = self.controller.get_admin_data_unified(self.admin_to_edit, from_cache=True)
+            admin_data = self.controller.get_admin_data_unified(
+                self.admin_to_edit, from_cache=True
+            )
             if admin_data:
-                current_role = admin_data.get('role', 'admin')
+                current_role = admin_data.get("role", "admin")
                 current_info_text = f"Current role: {current_role.title()}"
 
                 # If manager with trainer, add trainer info
-                if current_role == 'manager' and admin_data.get('trainer_id'):
-                    trainer_name = self._get_trainer_name(admin_data.get('trainer_id'))
+                if current_role == "manager" and admin_data.get("trainer_id"):
+                    trainer_name = self._get_trainer_name(admin_data.get("trainer_id"))
                     if trainer_name:
                         current_info_text += f" (Associated with: {trainer_name})"
 
@@ -233,6 +245,11 @@ class AdminFormView(ctk.CTkFrame):
         role_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
         role_frame.pack(fill="x", pady=(0, 15))
 
+        # Security check: Only allow admin creation if current user is admin
+        current_user_is_admin = self.controller.can_create_admin_accounts(
+            self.current_admin
+        )
+
         self.admin_radio = ctk.CTkRadioButton(
             role_frame,
             text="Administrator",
@@ -243,7 +260,13 @@ class AdminFormView(ctk.CTkFrame):
             fg_color=COLORS["primary"][0],
             command=self._on_role_change,
         )
-        self.admin_radio.pack(side="left", padx=(0, 20))
+
+        # Only show admin option if current user is admin
+        if current_user_is_admin:
+            self.admin_radio.pack(side="left", padx=(0, 20))
+        else:
+            # If current user is manager, set default to manager and hide admin option
+            self.role_var.set("manager")
 
         self.manager_radio = ctk.CTkRadioButton(
             role_frame,
@@ -256,6 +279,17 @@ class AdminFormView(ctk.CTkFrame):
             command=self._on_role_change,
         )
         self.manager_radio.pack(side="left")
+
+        # Add security note for managers
+        if not current_user_is_admin:
+            security_note = ctk.CTkLabel(
+                form_frame,
+                text="⚠️ As a Manager, you can only create other Manager accounts",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=COLORS["accent"][0],
+                anchor="w",
+            )
+            security_note.pack(anchor="w", pady=(5, 10))
 
         # Trainer selection section (only shown for manager role)
         self.trainer_selection_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
@@ -270,7 +304,7 @@ class AdminFormView(ctk.CTkFrame):
             buttons_frame,
             on_save=self.on_save,
             on_cancel=self.on_cancel,
-            get_form_data=self.get_form_data
+            get_form_data=self.get_form_data,
         )
         self.form_buttons.pack(fill="x")
 
@@ -452,15 +486,25 @@ class AdminFormView(ctk.CTkFrame):
         self.trainer_view.pack(fill="both", expand=True, padx=0, pady=0)
 
     def get_form_data(self):
+        # Security check: Prevent managers from creating admin accounts
+        selected_role = self.role_var.get()
+
+        # If current user is not admin and tries to create admin, force to manager
+        if (
+            not self.controller.can_create_admin_accounts(self.current_admin)
+            and selected_role == "admin"
+        ):
+            selected_role = "manager"
+
         # Get selected trainer from the table if manager role is selected
         trainer_id = None
-        if self.role_var.get() == "manager" and hasattr(self, "trainer_view"):
+        if selected_role == "manager" and hasattr(self, "trainer_view"):
             trainer_id = self.trainer_view.table.get_selected_id()
 
         return {
             "username": self.username_entry.get(),
             "password": self.password_entry.get(),
-            "role": self.role_var.get(),
+            "role": selected_role,
             "trainer_id": trainer_id,
         }
 
