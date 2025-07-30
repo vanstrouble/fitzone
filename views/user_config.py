@@ -268,9 +268,7 @@ class UserConfigFrame(ctk.CTkFrame):
             button_container,
             on_save=self._handle_save,
             on_cancel=self._handle_cancel,
-            get_form_data=self._get_form_data,
-            save_text="Update Profile",
-            cancel_text="Cancel"
+            get_form_data=self._get_form_data
         )
         self.form_buttons.pack(fill="x")
 
@@ -315,10 +313,13 @@ class UserConfigFrame(ctk.CTkFrame):
 
     def _get_form_data(self):
         """Get form data for saving"""
-        password = self.password_entry.get().strip()
+        # Safely get values with fallbacks to empty string
+        username = self.username_entry.get() if self.username_entry.get() else ""
+        password = self.password_entry.get() if self.password_entry.get() else ""
+
         return {
-            'username': self.username_entry.get().strip() or self.current_admin.username,
-            'password': password if password else None
+            'username': username.strip() if username else self.current_admin.username,
+            'password': password.strip() if password else None
         }
 
     def _handle_save(self, form_data):
@@ -326,9 +327,15 @@ class UserConfigFrame(ctk.CTkFrame):
         try:
             self._clear_error_states()
 
-            new_username = form_data.get('username', '').strip()
-            new_password = form_data.get('password', '')
-            confirm_password = self.confirm_password_entry.get()
+            # Safely extract and validate form data
+            new_username = form_data.get('username', '') if form_data.get('username') else ''
+            new_password = form_data.get('password', '') if form_data.get('password') else ''
+            confirm_password = self.confirm_password_entry.get() or ''
+
+            # Strip strings safely
+            new_username = new_username.strip() if new_username else ''
+            new_password = new_password.strip() if new_password else ''
+            confirm_password = confirm_password.strip() if confirm_password else ''
 
             # Validate inputs
             if not self._validate_inputs(new_username, new_password, confirm_password):

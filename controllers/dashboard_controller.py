@@ -4,7 +4,7 @@ Applies the MVC pattern correctly: the controller handles business logic
 and coordination between the model (data) and the view (UI).
 """
 
-from controllers.crud import create_admin, update_admin, is_admin
+from controllers.crud import create_admin, is_admin
 from services.data_formatter import DataFormatter
 from models.admin import Admin
 from typing import List, Dict, Any, Optional
@@ -214,9 +214,12 @@ class DashboardController:
                 # Use cached data (more efficient)
                 admin_data_list = self.get_admin_data()  # Uses cached data
 
+                # Convert admin_id to string for consistent comparison
+                admin_id_str = str(admin_id)
+
                 # Find admin by ID in the cached formatted data
                 for admin_row in admin_data_list:
-                    if admin_row[0] == admin_id:  # ID is at index 0
+                    if str(admin_row[0]) == admin_id_str:  # ID is at index 0
                         return {
                             'id': admin_row[0],
                             'username': admin_row[1],
@@ -274,51 +277,76 @@ class DashboardController:
             admin_data: Dict with admin data (username, password, role, etc.)
             admin_form_or_id: Can be:
                 - AdminFormView object (has admin_to_edit attribute) for form operations
-                - String ID for direct profile updates
+                - String/Int ID for direct profile updates
                 - None for creating new admin
 
         Returns:
             Dict with success status and message
         """
         try:
-            # Create Admin object from form data
-            admin = Admin(
-                username=admin_data.get("username"),
-                password=admin_data.get("password"),
-                role=admin_data.get("role", "admin")
-            )
-
             # Determine if we're updating
             admin_id_to_update = None
 
             if admin_form_or_id:
-                if isinstance(admin_form_or_id, str):
-                    # Direct ID passed (from user_config.py)
-                    admin_id_to_update = admin_form_or_id
+                if isinstance(admin_form_or_id, (str, int)):
+                    # Direct ID passed (from user_config.py) - can be string or int
+                    admin_id_to_update = str(admin_form_or_id)
                 elif hasattr(admin_form_or_id, 'admin_to_edit') and admin_form_or_id.admin_to_edit:
                     # Form object with admin_to_edit (from admin_form.py)
                     admin_id_to_update = admin_form_or_id.admin_to_edit
 
             if admin_id_to_update:
-                # Update existing admin
-                admin.unique_id = admin_id_to_update
-                success = update_admin(admin)
+                # UPDATE EXISTING ADMIN
+                from controllers.crud import get_admin, update_admin
+
+                # Get existing admin first
+                existing_admin = get_admin(admin_id_to_update)
+                if not existing_admin:
+                    return {"success": False, "message": "Admin not found"}
+
+                # Update only provided fields
+                if admin_data.get("username"):
+                    existing_admin.username = admin_data["username"]
+
+                # Only update password if provided
+                if admin_data.get("password"):
+                    existing_admin.set_password(admin_data["password"])
+
+                # Update role if provided
+                if admin_data.get("role"):
+                    existing_admin.role = admin_data["role"]
+
+                success = update_admin(existing_admin)
 
                 if success:
                     # Invalidate cache after successful update
                     self.invalidate_cache("admins")
                     return {
                         "success": True,
-                        "message": f"Administrator '{admin.username}' updated successfully",
-                        "updated_username": admin.username
+                        "message": f"Administrator '{existing_admin.username}' "
+                                   f"updated successfully",
+                        "updated_username": existing_admin.username
                     }
                 else:
                     return {
                         "success": False,
-                        "message": f"Failed to update administrator '{admin.username}'"
+                        "message": f"Failed to update administrator '{existing_admin.username}'"
                     }
             else:
-                # Create new admin
+                # CREATE NEW ADMIN
+                # For creation, password is required
+                if not admin_data.get("password"):
+                    return {
+                        "success": False,
+                        "message": "Password is required for new administrators"
+                    }
+
+                admin = Admin(
+                    username=admin_data.get("username"),
+                    password=admin_data.get("password"),
+                    role=admin_data.get("role", "admin")
+                )
+
                 created_admin = create_admin(admin)
 
                 if created_admin:
