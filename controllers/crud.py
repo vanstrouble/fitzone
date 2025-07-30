@@ -393,7 +393,8 @@ def create_admin(admin):
         # Reuse the helper function
         if _check_admin_username_exists(session, admin.username):
             logger.warning(f"Admin with username '{admin.username}' already exists")
-            return None
+            # Raise a specific exception for username conflicts
+            raise ValueError(f"Username '{admin.username}' already exists")
 
         admin_db = admin_to_db(admin)
         session.add(admin_db)
@@ -403,7 +404,8 @@ def create_admin(admin):
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Error creating admin: {str(e)}")
-        return None
+        # Re-raise the exception for upstream handling
+        raise e
     finally:
         session.close()
 
@@ -455,14 +457,14 @@ def update_admin(admin):
     """Updates an existing admin"""
     if not admin.unique_id:
         logger.error("Cannot update an admin without an ID")
-        return False
+        raise ValueError("Cannot update an admin without an ID")
 
     session = SessionLocal()
     try:
         admin_db = session.query(AdminDB).filter(AdminDB.id == admin.unique_id).first()
         if not admin_db:
             logger.warning(f"Admin with ID {admin.unique_id} not found")
-            return False
+            raise ValueError(f"Admin with ID {admin.unique_id} not found")
 
         # Update username
         admin_db.username = admin.username
@@ -480,7 +482,8 @@ def update_admin(admin):
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Error updating admin: {str(e)}")
-        return False
+        # Re-raise the exception with the original error for better handling upstream
+        raise e
     finally:
         session.close()
 

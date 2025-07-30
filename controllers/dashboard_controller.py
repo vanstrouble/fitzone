@@ -269,6 +269,47 @@ class DashboardController:
         """Extracts the username from a configuration section"""
         return section_name.split(" ", 1)[1]
 
+    def _handle_database_error(self, error: Exception, username: str = "") -> Dict[str, Any]:
+        """
+        Handle database errors and return appropriate error messages
+
+        Args:
+            error: The exception that occurred
+            username: The username involved in the operation (for context)
+
+        Returns:
+            Dict with success=False and appropriate error message
+        """
+        error_message = str(error)
+
+        # Handle specific database constraint errors
+        if "UNIQUE constraint failed: admins.username" in error_message:
+            return {
+                "success": False,
+                "message": f"Username '{username}' is already taken. "
+                           f"Please choose a different username."
+            }
+        elif "UNIQUE constraint failed" in error_message:
+            return {
+                "success": False,
+                "message": "This information is already in use. Please check your input."
+            }
+        elif "NOT NULL constraint failed" in error_message:
+            return {
+                "success": False,
+                "message": "Required information is missing. Please fill all required fields."
+            }
+        elif "Admin not found" in error_message or "not found" in error_message:
+            return {
+                "success": False,
+                "message": "The administrator could not be found."
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Database error: {error_message}"
+            }
+
     def save_admin_data(self, admin_data: Dict[str, Any], admin_form_or_id=None) -> Dict[str, Any]:
         """
         Create or update an admin based on admin_form_or_id parameter.
@@ -316,22 +357,17 @@ class DashboardController:
                 if admin_data.get("role"):
                     existing_admin.role = admin_data["role"]
 
-                success = update_admin(existing_admin)
+                # Attempt to update - CRUD will raise exceptions on errors
+                update_admin(existing_admin)
 
-                if success:
-                    # Invalidate cache after successful update
-                    self.invalidate_cache("admins")
-                    return {
-                        "success": True,
-                        "message": f"Administrator '{existing_admin.username}' "
-                                   f"updated successfully",
-                        "updated_username": existing_admin.username
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": f"Failed to update administrator '{existing_admin.username}'"
-                    }
+                # If we reach here, update was successful
+                self.invalidate_cache("admins")
+                return {
+                    "success": True,
+                    "message": f"Administrator '{existing_admin.username}' "
+                               f"updated successfully",
+                    "updated_username": existing_admin.username
+                }
             else:
                 # CREATE NEW ADMIN
                 # For creation, password is required
@@ -347,25 +383,19 @@ class DashboardController:
                     role=admin_data.get("role", "admin")
                 )
 
-                created_admin = create_admin(admin)
+                # Attempt to create - CRUD will raise exceptions on errors
+                create_admin(admin)
 
-                if created_admin:
-                    # Invalidate cache after successful creation
-                    self.invalidate_cache("admins")
-                    return {
-                        "success": True,
-                        "message": f"Administrator '{admin.username}' created successfully"
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "message": f"Username '{admin.username}' already exists or creation failed"
-                    }
+                # If we reach here, creation was successful
+                self.invalidate_cache("admins")
+                return {
+                    "success": True,
+                    "message": f"Administrator '{admin.username}' created successfully"
+                }
         except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error saving admin: {str(e)}"
-            }
+            # Use the centralized error handler
+            username = admin_data.get("username", "")
+            return self._handle_database_error(e, username)
 
     def refresh_admin_profile(self, admin_id: str) -> Optional[Dict[str, Any]]:
         """Refresh and get updated admin profile data"""
