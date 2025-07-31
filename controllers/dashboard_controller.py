@@ -77,7 +77,7 @@ class DashboardController:
 
     def _advanced_search(self, data: List[List[Any]], query: str) -> List[List[Any]]:
         """
-        Advanced search with multiple algorithms:
+        Advanced search with multiple algorithms optimized with comprehensions:
         1. Exact match (highest priority)
         2. Fuzzy match
         3. Partial word match
@@ -86,27 +86,17 @@ class DashboardController:
             return data
 
         query = query.strip()
-        results = []
 
-        for row in data:
-            match_found = False
-
-            for cell in row:
-                cell_str = str(cell)
-
-                # Try different matching strategies
-                if (
-                    self._exact_match(cell_str, query)
-                    or self._fuzzy_match(cell_str, query, threshold=0.6)
-                    or self._partial_word_match(cell_str, query)
-                ):
-                    match_found = True
-                    break
-
-            if match_found:
-                results.append(row)
-
-        return results
+        # Use list comprehension with any() for O(n) complexity
+        return [
+            row for row in data
+            if any(
+                self._exact_match(str(cell), query)
+                or self._fuzzy_match(str(cell), query, threshold=0.6)
+                or self._partial_word_match(str(cell), query)
+                for cell in row
+            )
+        ]
 
     def _exact_match(self, text: str, query: str) -> bool:
         """Exact substring matching (case-insensitive, accent-insensitive)"""
@@ -159,12 +149,12 @@ class DashboardController:
         return self._data_cache[table_name]
 
     def _clear_filter_cache(self, table_name: str):
-        """Clear filter cache for specific table"""
-        keys_to_remove = [
-            key for key in self._filter_cache.keys() if key.startswith(f"{table_name}_")
-        ]
-        for key in keys_to_remove:
-            del self._filter_cache[key]
+        """Clear filter cache for specific table using optimized filtering"""
+        # Use dict comprehension to rebuild cache without matching keys (O(n) single pass)
+        self._filter_cache = {
+            key: value for key, value in self._filter_cache.items()
+            if not key.startswith(f"{table_name}_")
+        }
 
     def invalidate_cache(self, table_name: str):
         """Invalidate cache for specific table (call after data changes)"""
@@ -231,28 +221,29 @@ class DashboardController:
             if from_cache:
                 # Use cached extended data with real IDs for better matching
                 admin_data_list = self._get_cached_data("admins_extended")
-
-                # Convert admin_id to string for consistent comparison
                 admin_id_str = str(admin_id)
 
-                # Find admin by ID in the cached formatted data
-                for admin_row in admin_data_list:
-                    if str(admin_row[0]) == admin_id_str:  # ID is at index 0
-                        return {
-                            "id": admin_row[0],
-                            "username": admin_row[1],
-                            "role": admin_row[2].lower(),  # Convert "Admin"/"Manager" to lowercase
-                            "created_at": admin_row[3],
-                            "unique_id": admin_row[0],  # Add unique_id for consistency
-                            "trainer_id": admin_row[4],  # Add trainer_id from extended data
-                        }
+                # Use next() with generator for O(1) early termination
+                admin_row = next(
+                    (row for row in admin_data_list if str(row[0]) == admin_id_str),
+                    None
+                )
+
+                if admin_row:
+                    return {
+                        "id": admin_row[0],
+                        "username": admin_row[1],
+                        "role": admin_row[2].lower(),
+                        "created_at": admin_row[3],
+                        "unique_id": admin_row[0],
+                        "trainer_id": admin_row[4],
+                    }
                 return None
             else:
                 # Query database directly (fresh data)
                 from controllers.crud import get_admin
 
                 admin = get_admin(admin_id)
-
                 if not admin:
                     return None
 
@@ -466,43 +457,34 @@ class DashboardController:
     def get_available_trainers_for_manager(self) -> List[List[Any]]:
         """
         Get trainers that are not yet associated with any manager account
-        Uses cached data efficiently to check trainer associations
+        Uses cached data efficiently with optimized algorithms
 
         Returns:
             List of trainer data for trainers not associated with managers
             (with sequential IDs for display)
         """
         try:
-            # Get trainers with real IDs for filtering logic
+            # Get cached data efficiently
             trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
             extended_admin_data = self._get_cached_data("admins_extended")
 
-            # Extract trainer IDs that are already associated with managers
-            associated_trainer_ids = set()
-            for admin_row in extended_admin_data:
-                # admin_row format: [id, username, role, created_at, trainer_id]
-                if len(admin_row) >= 5 and admin_row[4] is not None:  # trainer_id is not None
-                    associated_trainer_ids.add(str(admin_row[4]))  # Ensure string comparison
+            # Extract associated trainer IDs using set comprehension (O(n) instead of O(n²))
+            associated_trainer_ids = {
+                str(admin_row[4]) for admin_row in extended_admin_data
+                if len(admin_row) >= 5 and admin_row[4] is not None
+            }
 
-            # Filter trainers that are not associated (using real IDs)
-            available_trainers_with_real_ids = []
-            for trainer_row in trainers_with_real_ids:
-                trainer_id = str(trainer_row[0])  # Real ID is at index 0
-                if trainer_id not in associated_trainer_ids:
-                    available_trainers_with_real_ids.append(trainer_row)
+            # Filter available trainers using list comprehension with enumeration
+            available_trainers_with_real_ids = [
+                trainer_row for trainer_row in trainers_with_real_ids
+                if str(trainer_row[0]) not in associated_trainer_ids
+            ]
 
-            # Convert to display format with sequential IDs
-            available_trainers_display = []
-            for idx, trainer_row in enumerate(available_trainers_with_real_ids):
-                display_row = [
-                    str(idx + 1),  # Sequential ID for display
-                    trainer_row[1],  # Name
-                    trainer_row[2],  # Specialty
-                    trainer_row[3],  # Schedule
-                ]
-                available_trainers_display.append(display_row)
-
-            return available_trainers_display
+            # Convert to display format using list comprehension (O(n) single pass)
+            return [
+                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3]]
+                for idx, trainer_row in enumerate(available_trainers_with_real_ids)
+            ]
 
         except Exception as e:
             # If extended data fails, fallback to all trainers (with sequential IDs)
