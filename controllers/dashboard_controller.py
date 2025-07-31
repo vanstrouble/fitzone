@@ -143,6 +143,10 @@ class DashboardController:
                 self._data_cache[table_name] = (
                     self.data_formatter.get_formatted_trainer_data()
                 )
+            elif table_name == "trainers_with_real_ids":
+                self._data_cache[table_name] = (
+                    self.data_formatter.get_formatted_trainer_data_with_real_ids()
+                )
             elif table_name == "users":
                 self._data_cache[table_name] = (
                     self.data_formatter.get_formatted_user_data()
@@ -171,6 +175,11 @@ class DashboardController:
         if table_name == "admins":
             self._cache_dirty["admins_extended"] = True
             self._clear_filter_cache("admins_extended")
+
+        # If trainers cache is invalidated, also invalidate real IDs cache
+        if table_name == "trainers":
+            self._cache_dirty["trainers_with_real_ids"] = True
+            self._clear_filter_cache("trainers_with_real_ids")
 
     def filter_data(self, table_name: str, query: str) -> List[List[Any]]:
         """Filter data with advanced search algorithms and caching"""
@@ -461,10 +470,11 @@ class DashboardController:
 
         Returns:
             List of trainer data for trainers not associated with managers
+            (with sequential IDs for display)
         """
         try:
-            # Get cached data efficiently
-            all_trainers = self._get_cached_data("trainers")
+            # Get trainers with real IDs for filtering logic
+            trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
             extended_admin_data = self._get_cached_data("admins_extended")
 
             # Extract trainer IDs that are already associated with managers
@@ -474,16 +484,27 @@ class DashboardController:
                 if len(admin_row) >= 5 and admin_row[4] is not None:  # trainer_id is not None
                     associated_trainer_ids.add(str(admin_row[4]))  # Ensure string comparison
 
-            # Filter trainers that are not associated
-            available_trainers = []
-            for trainer_row in all_trainers:
-                trainer_id = str(trainer_row[0])  # ID is at index 0, ensure string
+            # Filter trainers that are not associated (using real IDs)
+            available_trainers_with_real_ids = []
+            for trainer_row in trainers_with_real_ids:
+                trainer_id = str(trainer_row[0])  # Real ID is at index 0
                 if trainer_id not in associated_trainer_ids:
-                    available_trainers.append(trainer_row)
+                    available_trainers_with_real_ids.append(trainer_row)
 
-            return available_trainers
+            # Convert to display format with sequential IDs
+            available_trainers_display = []
+            for idx, trainer_row in enumerate(available_trainers_with_real_ids):
+                display_row = [
+                    str(idx + 1),  # Sequential ID for display
+                    trainer_row[1],  # Name
+                    trainer_row[2],  # Specialty
+                    trainer_row[3],  # Schedule
+                ]
+                available_trainers_display.append(display_row)
+
+            return available_trainers_display
 
         except Exception as e:
-            # If extended data fails, fallback to all trainers
+            # If extended data fails, fallback to all trainers (with sequential IDs)
             print(f"Warning: Could not filter trainers by association: {e}")
             return self._get_cached_data("trainers")

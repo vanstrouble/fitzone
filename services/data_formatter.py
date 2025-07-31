@@ -56,7 +56,35 @@ class DataFormatter:
         return formatted_data
 
     def get_formatted_trainer_data(self):
-        """Obtiene y formatea datos de entrenadores"""
+        """Obtiene y formatea datos de entrenadores con IDs secuenciales para la vista"""
+        try:
+            trainers_data = get_all_trainers()
+            formatted_data = []
+
+            for idx, trainer in enumerate(trainers_data):
+                # Format start_time and end_time if available
+                schedule_str = self._format_schedule(trainer)
+
+                # Get trainer name safely
+                full_name = self._format_full_name(trainer)
+
+                # Get specialty safely
+                specialty = getattr(trainer, "specialty", "Trainer")
+
+                formatted_data.append([
+                    str(idx + 1),  # Sequential ID for user-friendly display
+                    full_name,
+                    specialty,
+                    schedule_str,
+                ])
+
+            return formatted_data
+        except Exception as e:
+            print(f"Error formatting trainer data: {e}")
+            return []
+
+    def get_formatted_trainer_data_with_real_ids(self):
+        """Obtiene datos de entrenadores con IDs reales para filtrado interno"""
         try:
             trainers_data = get_all_trainers()
             formatted_data = []
@@ -75,7 +103,7 @@ class DataFormatter:
                 trainer_id = getattr(trainer, 'unique_id', None) or getattr(trainer, 'id', None)
 
                 formatted_data.append([
-                    str(trainer_id) if trainer_id else "N/A",  # Use real ID for proper filtering
+                    str(trainer_id) if trainer_id else "N/A",  # Real ID for system use
                     full_name,
                     specialty,
                     schedule_str,
@@ -83,7 +111,7 @@ class DataFormatter:
 
             return formatted_data
         except Exception as e:
-            print(f"Error formatting trainer data: {e}")
+            print(f"Error formatting trainer data with real IDs: {e}")
             return []
 
     def get_formatted_user_data(self):
