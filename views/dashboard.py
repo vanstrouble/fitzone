@@ -230,28 +230,7 @@ class DashboardFrame(ctk.CTkFrame):
 
     def _handle_admin_delete(self):
         """Handle admin deletion with confirmation dialog"""
-        selected_id = self.admin_view.table.get_selected_id()
-        if not selected_id:
-            return
-
-        # Get admin info for confirmation dialog
-        admin_data = self.controller.get_admin_data_unified(selected_id, from_cache=True)
-        if not admin_data:
-            self._show_error_dialog("Error", "Could not find administrator data")
-            return
-
-        username = admin_data.get("username", "unknown")
-
-        # Show confirmation dialog
-        if self._show_delete_confirmation(username):
-            # User confirmed deletion
-            result = self.controller.delete_admin_data(selected_id, self.current_admin)
-
-            if result["success"]:
-                # Refresh the table after successful deletion
-                self._show_admins_table()
-            else:
-                self._show_error_dialog("Delete Error", result['message'])
+        pass
 
     def _show_error_dialog(self, title: str, message: str):
         """Show error dialog to user"""

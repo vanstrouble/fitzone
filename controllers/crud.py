@@ -28,17 +28,6 @@ def _check_admin_username_exists(session, username):
     return existing_admin is not None
 
 
-def has_admin_permission(admin, required_role=AdminRoles.MANAGER):
-    """Check if an admin has permissions for a required role"""
-    if not admin:
-        return False
-    if admin.role == AdminRoles.ADMIN:
-        return True
-    if admin.role == AdminRoles.MANAGER and required_role == AdminRoles.MANAGER:
-        return True
-    return False
-
-
 # ----- Funciones de Usuario (User) -----
 
 
@@ -87,16 +76,8 @@ def get_all_users():
         session.close()
 
 
-def update_user(user, requester_admin):
+def update_user(user):
     """Updates an existing user"""
-    if not requester_admin or not has_admin_permission(
-        requester_admin, AdminRoles.MANAGER
-    ):
-        logger.warning(
-            f"Unauthorized update attempt by "
-            f"{getattr(requester_admin, 'username', 'Unknown')}"
-        )
-        return False
     if not getattr(user, "unique_id", None):
         logger.error("Cannot update a user without a valid ID")
         return False
@@ -488,27 +469,16 @@ def update_admin(admin):
         session.close()
 
 
-def delete_admin(requester_admin, admin_id_to_delete):
+def delete_admin(admin_id_to_delete):
     """
     Elimina un admin por su ID.
-    Solo admins pueden eliminar otros admins.
 
     Args:
-        requester_admin: El admin que solicita la eliminación
         admin_id_to_delete: ID del admin a eliminar (string o int)
 
     Returns:
         bool: True si se eliminó correctamente, False si no se pudo eliminar
     """
-    # Verificar permisos: solo ADMINs pueden eliminar otros admins
-    if not has_admin_permission(requester_admin, AdminRoles.ADMIN):
-        requester_name = (
-            getattr(requester_admin, 'username', 'Unknown')
-            if requester_admin else 'Unknown'
-        )
-        logger.warning(f"Unauthorized delete attempt by {requester_name}")
-        return False
-
     session = SessionLocal()
     try:
         # Buscar el admin a eliminar
@@ -528,11 +498,7 @@ def delete_admin(requester_admin, admin_id_to_delete):
         session.delete(admin_db)
         session.commit()
 
-        success_msg = (
-            f"Admin '{admin_db.username}' (ID: {admin_id_to_delete}) "
-            f"deleted successfully by {requester_admin.username}"
-        )
-        logger.info(success_msg)
+        logger.info(f"Admin '{admin_db.username}' (ID: {admin_id_to_delete}) deleted successfully")
         return True
 
     except SQLAlchemyError as e:
