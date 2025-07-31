@@ -27,13 +27,41 @@ class DataFormatter:
 
         return formatted_data
 
+    def get_formatted_admin_data_extended(self):
+        """
+        Obtiene datos de administradores con IDs reales y asociaciones de trainers
+        Mantiene compatibilidad pero agrega información necesaria para filtros
+        """
+        admins_data = get_all_admins()
+        formatted_data = []
+
+        for admin in admins_data:
+            # Format created_at date if available
+            created_at_str = self._format_date(admin.created_at)
+
+            # Get real admin ID safely
+            admin_id = getattr(admin, 'unique_id', None) or getattr(admin, 'id', None)
+
+            # Get associated trainer ID using the new trainer_id property
+            trainer_id = getattr(admin, 'trainer_id', None)
+
+            formatted_data.append([
+                str(admin_id) if admin_id else "N/A",  # Real admin ID
+                admin.username,
+                admin.role.capitalize() if admin.role else "Admin",
+                created_at_str,
+                trainer_id,  # Associated trainer ID from the model
+            ])
+
+        return formatted_data
+
     def get_formatted_trainer_data(self):
         """Obtiene y formatea datos de entrenadores"""
         try:
             trainers_data = get_all_trainers()
             formatted_data = []
 
-            for idx, trainer in enumerate(trainers_data):
+            for trainer in trainers_data:
                 # Format start_time and end_time if available
                 schedule_str = self._format_schedule(trainer)
 
@@ -43,8 +71,11 @@ class DataFormatter:
                 # Get specialty safely
                 specialty = getattr(trainer, "specialty", "Trainer")
 
+                # Get real trainer ID safely (for proper association filtering)
+                trainer_id = getattr(trainer, 'unique_id', None) or getattr(trainer, 'id', None)
+
                 formatted_data.append([
-                    str(idx + 1),  # Use sequential ID starting from 1
+                    str(trainer_id) if trainer_id else "N/A",  # Use real ID for proper filtering
                     full_name,
                     specialty,
                     schedule_str,

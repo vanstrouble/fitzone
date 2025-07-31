@@ -135,6 +135,10 @@ class DashboardController:
                 self._data_cache[table_name] = (
                     self.data_formatter.get_formatted_admin_data()
                 )
+            elif table_name == "admins_extended":
+                self._data_cache[table_name] = (
+                    self.data_formatter.get_formatted_admin_data_extended()
+                )
             elif table_name == "trainers":
                 self._data_cache[table_name] = (
                     self.data_formatter.get_formatted_trainer_data()
@@ -162,6 +166,11 @@ class DashboardController:
         """Invalidate cache for specific table (call after data changes)"""
         self._cache_dirty[table_name] = True
         self._clear_filter_cache(table_name)
+
+        # If admins cache is invalidated, also invalidate extended cache
+        if table_name == "admins":
+            self._cache_dirty["admins_extended"] = True
+            self._clear_filter_cache("admins_extended")
 
     def filter_data(self, table_name: str, query: str) -> List[List[Any]]:
         """Filter data with advanced search algorithms and caching"""
@@ -211,8 +220,8 @@ class DashboardController:
         """
         try:
             if from_cache:
-                # Use cached data (more efficient)
-                admin_data_list = self.get_admin_data()  # Uses cached data
+                # Use cached extended data with real IDs for better matching
+                admin_data_list = self._get_cached_data("admins_extended")
 
                 # Convert admin_id to string for consistent comparison
                 admin_id_str = str(admin_id)
@@ -223,11 +232,10 @@ class DashboardController:
                         return {
                             "id": admin_row[0],
                             "username": admin_row[1],
-                            "role": admin_row[
-                                2
-                            ].lower(),  # Convert "Admin"/"Manager" to lowercase
+                            "role": admin_row[2].lower(),  # Convert "Admin"/"Manager" to lowercase
                             "created_at": admin_row[3],
                             "unique_id": admin_row[0],  # Add unique_id for consistency
+                            "trainer_id": admin_row[4],  # Add trainer_id from extended data
                         }
                 return None
             else:
@@ -245,6 +253,7 @@ class DashboardController:
                     "role": admin.role,
                     "created_at": admin.created_at,
                     "unique_id": admin.unique_id,
+                    "trainer_id": getattr(admin, 'trainer_id', None),
                 }
         except Exception:
             return None
@@ -444,3 +453,37 @@ class DashboardController:
         is_admin = role == "admin"
 
         return is_admin
+
+    def get_available_trainers_for_manager(self) -> List[List[Any]]:
+        """
+        Get trainers that are not yet associated with any manager account
+        Uses cached data efficiently to check trainer associations
+
+        Returns:
+            List of trainer data for trainers not associated with managers
+        """
+        try:
+            # Get cached data efficiently
+            all_trainers = self._get_cached_data("trainers")
+            extended_admin_data = self._get_cached_data("admins_extended")
+
+            # Extract trainer IDs that are already associated with managers
+            associated_trainer_ids = set()
+            for admin_row in extended_admin_data:
+                # admin_row format: [id, username, role, created_at, trainer_id]
+                if len(admin_row) >= 5 and admin_row[4] is not None:  # trainer_id is not None
+                    associated_trainer_ids.add(str(admin_row[4]))  # Ensure string comparison
+
+            # Filter trainers that are not associated
+            available_trainers = []
+            for trainer_row in all_trainers:
+                trainer_id = str(trainer_row[0])  # ID is at index 0, ensure string
+                if trainer_id not in associated_trainer_ids:
+                    available_trainers.append(trainer_row)
+
+            return available_trainers
+
+        except Exception as e:
+            # If extended data fails, fallback to all trainers
+            print(f"Warning: Could not filter trainers by association: {e}")
+            return self._get_cached_data("trainers")

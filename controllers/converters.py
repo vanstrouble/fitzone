@@ -122,10 +122,16 @@ def db_to_trainer(trainer_db):
 
 def db_to_admin(admin_db):
     """Converts an AdminDB object to an Admin"""
+    # Get trainer_id from the relationship if it exists
+    trainer_id = None
+    if hasattr(admin_db, 'trainer') and admin_db.trainer:
+        trainer_id = admin_db.trainer.id
+
     admin = Admin(
         username=admin_db.username,
         role=admin_db.role,
         created_at=admin_db.created_at,
+        trainer_id=trainer_id  # Pass trainer association
     )
     admin.unique_id = admin_db.id
     admin._password = admin_db.password_hash

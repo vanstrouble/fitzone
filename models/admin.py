@@ -14,12 +14,13 @@ ph = PasswordHasher(
 
 
 class Admin:
-    def __init__(self, username=None, password=None, role=None, created_at=None):
+    def __init__(self, username=None, password=None, role=None, created_at=None, trainer_id=None):
         self._unique_id = None
         self._username = username
         self._password = None
         self._role = role
         self._created_at = created_at or datetime.now().strftime("%Y-%m-%d %H:00")
+        self._trainer_id = trainer_id  # Add trainer association
 
         if password:
             self.set_password(password)
@@ -98,6 +99,14 @@ class Admin:
             self._created_at = created_at
         except ValueError:
             raise ValueError("created_at must be in the format 'YYYY-MM-DD HH:00'")
+
+    @property
+    def trainer_id(self):
+        return self._trainer_id
+
+    @trainer_id.setter
+    def trainer_id(self, trainer_id):
+        self._trainer_id = trainer_id
 
     def to_dict(self):
         return {

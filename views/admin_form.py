@@ -470,16 +470,17 @@ class AdminFormView(ctk.CTkFrame):
         for widget in self.trainer_selection_frame.winfo_children():
             widget.destroy()
 
-        trainers_data = self.controller.get_trainer_data()
+        # Get only available trainers (not associated with other managers)
+        trainers_data = self.controller.get_available_trainers_for_manager()
 
         self.trainer_view = TableWithHeaderView(
             self.trainer_selection_frame,
             title="Associate Trainer",
-            description="You can associate a trainer as manager (optional)",
+            description="Select a trainer to associate with this manager account (optional)",
             headers=["ID", "Name", "Specialty", "Schedule"],
             data=trainers_data,
             column_weights=[1, 3, 2, 2],
-            table_name="Trainers",
+            table_name="Available Trainers",
             controller=self.controller,
             show_crud_buttons=False,
         )
