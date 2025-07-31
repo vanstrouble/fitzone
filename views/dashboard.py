@@ -113,6 +113,7 @@ class DashboardFrame(ctk.CTkFrame):
             crud_callbacks={
                 "on_add": lambda: self._show_admin_form(),
                 "on_update": self._handle_admin_update,
+                "on_delete": self._handle_admin_delete,
             },
         )
         self.admin_view.pack(fill="both", expand=True, padx=10, pady=10)
@@ -210,15 +211,12 @@ class DashboardFrame(ctk.CTkFrame):
             )
 
             if result["success"]:
-                print(result["message"])
                 # Return to the admins table after successful save
                 self._show_admins_table()
             else:
-                print(f"Error: {result['message']}")
-                # Could show an error message to the user here
+                self._show_error_dialog("Save Error", result['message'])
         except Exception as e:
-            print(f"Error saving admin: {e}")
-            # Could show an error message to the user here
+            self._show_error_dialog("Save Error", f"Error saving admin: {e}")
 
     def _handle_admin_cancel(self):
         # Return to the admins table
@@ -229,3 +227,44 @@ class DashboardFrame(ctk.CTkFrame):
         selected_id = self.admin_view.table.get_selected_id()
         if selected_id:
             self._show_admin_form(admin_to_edit=selected_id)
+
+    def _handle_admin_delete(self):
+        """Handle admin deletion with confirmation dialog"""
+        selected_id = self.admin_view.table.get_selected_id()
+        if not selected_id:
+            return
+
+        # Get admin info for confirmation dialog
+        admin_data = self.controller.get_admin_data_unified(selected_id, from_cache=True)
+        if not admin_data:
+            self._show_error_dialog("Error", "Could not find administrator data")
+            return
+
+        username = admin_data.get("username", "unknown")
+
+        # Show confirmation dialog
+        if self._show_delete_confirmation(username):
+            # User confirmed deletion
+            result = self.controller.delete_admin_data(selected_id, self.current_admin)
+
+            if result["success"]:
+                # Refresh the table after successful deletion
+                self._show_admins_table()
+            else:
+                self._show_error_dialog("Delete Error", result['message'])
+
+    def _show_error_dialog(self, title: str, message: str):
+        """Show error dialog to user"""
+        import tkinter.messagebox as messagebox
+        messagebox.showerror(title, message)
+
+    def _show_delete_confirmation(self, username: str) -> bool:
+        """Show confirmation dialog for admin deletion"""
+        import tkinter.messagebox as messagebox
+
+        return messagebox.askyesno(
+            "Confirm Deletion",
+            f"Are you sure you want to delete the administrator '{username}'?\n\n"
+            f"This action cannot be undone.",
+            icon="warning"
+        )
