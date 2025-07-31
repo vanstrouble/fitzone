@@ -491,27 +491,50 @@ def update_admin(admin):
 def delete_admin(requester_admin, admin_id_to_delete):
     """
     Elimina un admin por su ID.
-    Solo admins pueden eliminar admins.
+    Solo admins pueden eliminar otros admins.
+
+    Args:
+        requester_admin: El admin que solicita la eliminación
+        admin_id_to_delete: ID del admin a eliminar (string o int)
+
+    Returns:
+        bool: True si se eliminó correctamente, False si no se pudo eliminar
     """
+    # Verificar permisos: solo ADMINs pueden eliminar otros admins
     if not has_admin_permission(requester_admin, AdminRoles.ADMIN):
-        logger.warning(f"Unauthorized delete attempt by {requester_admin.username}")
+        requester_name = (
+            getattr(requester_admin, 'username', 'Unknown')
+            if requester_admin else 'Unknown'
+        )
+        logger.warning(f"Unauthorized delete attempt by {requester_name}")
         return False
 
     session = SessionLocal()
     try:
+        # Buscar el admin a eliminar
         admin_db = (
             session.query(AdminDB).filter(AdminDB.id == admin_id_to_delete).first()
         )
         if not admin_db:
+            logger.warning(f"Admin with ID {admin_id_to_delete} not found")
             return False
 
+        # Verificar que no sea el último admin del sistema
         if is_last_admin(session):
-            logger.warning("Cannot delete the last admin")
+            logger.warning("Cannot delete the last admin in the system")
             return False
 
+        # Proceder con la eliminación
         session.delete(admin_db)
         session.commit()
+
+        success_msg = (
+            f"Admin '{admin_db.username}' (ID: {admin_id_to_delete}) "
+            f"deleted successfully by {requester_admin.username}"
+        )
+        logger.info(success_msg)
         return True
+
     except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Error deleting admin: {str(e)}")
@@ -571,17 +594,20 @@ def is_admin_username_available(username):
 
 
 def is_last_admin(session):
-    """Checks if there is only one admin in the database"""
-    admin_count = session.query(AdminDB).count()
-    return admin_count == 1
+    """Checks if there is only one admin with ADMIN role in the database"""
+    admin_count = session.query(AdminDB).filter(AdminDB.role == AdminRoles.ADMIN).count()
+    return admin_count <= 1
 
 
 def ensure_default_admin_exists():
-    """Ensures that there is at least one admin in the system"""
+    """Ensures that there is at least one admin with ADMIN role in the system"""
     session = SessionLocal()
     try:
-        admin_count = session.query(AdminDB).count()
+        # Check if there are any admins with ADMIN role (not managers)
+        admin_count = session.query(AdminDB).filter(AdminDB.role == AdminRoles.ADMIN).count()
+
         if admin_count == 0:
+            logger.info("No admin users found, creating default admin account")
 
             default_admin = Admin(
                 username=DEFAULT_ADMIN["username"],
@@ -590,7 +616,7 @@ def ensure_default_admin_exists():
             )
 
             create_admin(default_admin)
-            logger.info("Created default admin account")
+            logger.info(f"Created default admin account: {DEFAULT_ADMIN['username']}")
 
     except SQLAlchemyError as e:
         logger.error(f"Error ensuring default admin: {str(e)}")
