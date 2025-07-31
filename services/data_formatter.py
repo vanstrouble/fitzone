@@ -61,6 +61,17 @@ class DataFormatter:
             trainers_data = get_all_trainers()
             formatted_data = []
 
+            # Get admin data to find manager associations
+            admins_data = get_all_admins()
+
+            # Create a mapping of trainer_id -> manager_username
+            trainer_to_manager = {}
+            for admin in admins_data:
+                trainer_id = getattr(admin, 'trainer_id', None)
+                admin_role = getattr(admin, 'role', '')
+                if trainer_id and admin_role and admin_role.lower() == 'manager':
+                    trainer_to_manager[trainer_id] = admin.username
+
             for idx, trainer in enumerate(trainers_data):
                 # Format start_time and end_time if available
                 schedule_str = self._format_schedule(trainer)
@@ -71,11 +82,18 @@ class DataFormatter:
                 # Get specialty safely
                 specialty = getattr(trainer, "specialty", "Trainer")
 
+                # Get real trainer ID for manager lookup
+                trainer_id = getattr(trainer, 'unique_id', None) or getattr(trainer, 'id', None)
+
+                # Find associated manager
+                manager_username = trainer_to_manager.get(trainer_id, "Available")
+
                 formatted_data.append([
                     str(idx + 1),  # Sequential ID for user-friendly display
                     full_name,
                     specialty,
                     schedule_str,
+                    manager_username,  # Associated manager or "Available"
                 ])
 
             return formatted_data
@@ -88,6 +106,17 @@ class DataFormatter:
         try:
             trainers_data = get_all_trainers()
             formatted_data = []
+
+            # Get admin data to find manager associations
+            admins_data = get_all_admins()
+
+            # Create a mapping of trainer_id -> manager_username
+            trainer_to_manager = {}
+            for admin in admins_data:
+                trainer_id = getattr(admin, 'trainer_id', None)
+                admin_role = getattr(admin, 'role', '')
+                if trainer_id and admin_role and admin_role.lower() == 'manager':
+                    trainer_to_manager[trainer_id] = admin.username
 
             for trainer in trainers_data:
                 # Format start_time and end_time if available
@@ -102,11 +131,15 @@ class DataFormatter:
                 # Get real trainer ID safely (for proper association filtering)
                 trainer_id = getattr(trainer, 'unique_id', None) or getattr(trainer, 'id', None)
 
+                # Find associated manager
+                manager_username = trainer_to_manager.get(trainer_id, "Available")
+
                 formatted_data.append([
                     str(trainer_id) if trainer_id else "N/A",  # Real ID for system use
                     full_name,
                     specialty,
                     schedule_str,
+                    manager_username,  # Associated manager or "Available"
                 ])
 
             return formatted_data

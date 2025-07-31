@@ -457,18 +457,18 @@ class DashboardController:
     def get_available_trainers_for_manager(self) -> List[List[Any]]:
         """
         Get trainers that are not yet associated with any manager account
-        Uses cached data efficiently with optimized algorithms
+        Uses cached data efficiently to check trainer associations
 
         Returns:
             List of trainer data for trainers not associated with managers
             (with sequential IDs for display)
         """
         try:
-            # Get cached data efficiently
+            # Get trainers with real IDs for filtering logic
             trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
             extended_admin_data = self._get_cached_data("admins_extended")
 
-            # Extract associated trainer IDs using set comprehension (O(n) instead of O(n²))
+            # Extract trainer IDs that are already associated with managers
             associated_trainer_ids = {
                 str(admin_row[4]) for admin_row in extended_admin_data
                 if len(admin_row) >= 5 and admin_row[4] is not None
@@ -480,9 +480,9 @@ class DashboardController:
                 if str(trainer_row[0]) not in associated_trainer_ids
             ]
 
-            # Convert to display format using list comprehension (O(n) single pass)
+            # Convert to display format with sequential IDs
             return [
-                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3]]
+                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3], trainer_row[4]]
                 for idx, trainer_row in enumerate(available_trainers_with_real_ids)
             ]
 
@@ -490,3 +490,41 @@ class DashboardController:
             # If extended data fails, fallback to all trainers (with sequential IDs)
             print(f"Warning: Could not filter trainers by association: {e}")
             return self._get_cached_data("trainers")
+
+    def get_available_trainers_for_form(self) -> List[List[Any]]:
+        """
+        Get trainers available for manager association - FOR ADMIN FORM USE ONLY
+        Returns only 4 columns (without Manager column) for form compatibility
+
+        Returns:
+            List of trainer data [ID, Name, Specialty, Schedule] for form display
+        """
+        try:
+            # Get trainers with real IDs for filtering logic
+            trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
+            extended_admin_data = self._get_cached_data("admins_extended")
+
+            # Extract trainer IDs that are already associated with managers
+            associated_trainer_ids = {
+                str(admin_row[4]) for admin_row in extended_admin_data
+                if len(admin_row) >= 5 and admin_row[4] is not None
+            }
+
+            # Filter available trainers using list comprehension
+            available_trainers_with_real_ids = [
+                trainer_row for trainer_row in trainers_with_real_ids
+                if str(trainer_row[0]) not in associated_trainer_ids
+            ]
+
+            # Convert to display format with sequential IDs (only 4 columns for form)
+            return [
+                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3]]
+                for idx, trainer_row in enumerate(available_trainers_with_real_ids)
+            ]
+
+        except Exception as e:
+            # If extended data fails, fallback to basic trainer data (4 columns)
+            print(f"Warning: Could not filter trainers by association: {e}")
+            basic_trainers = self._get_cached_data("trainers")
+            # Ensure we only return 4 columns even from basic data
+            return [trainer[:4] for trainer in basic_trainers]

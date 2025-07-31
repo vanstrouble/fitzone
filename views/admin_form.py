@@ -470,8 +470,8 @@ class AdminFormView(ctk.CTkFrame):
         for widget in self.trainer_selection_frame.winfo_children():
             widget.destroy()
 
-        # Get only available trainers (not associated with other managers)
-        trainers_data = self.controller.get_available_trainers_for_manager()
+        # Get available trainers for form (4 columns only)
+        trainers_data = self.controller.get_available_trainers_for_form()
 
         self.trainer_view = TableWithHeaderView(
             self.trainer_selection_frame,

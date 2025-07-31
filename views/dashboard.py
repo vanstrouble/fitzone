@@ -126,10 +126,10 @@ class DashboardFrame(ctk.CTkFrame):
         self.trainer_view = TableWithHeaderView(
             self.content_container,
             title="Trainer Management",
-            description="View and manage gym trainers",
-            headers=["ID", "Name", "Specialty", "Schedule"],
+            description="View and manage gym trainers and their manager associations",
+            headers=["ID", "Name", "Specialty", "Schedule", "Manager"],
             data=trainers_data,
-            column_weights=[1, 3, 2, 2],
+            column_weights=[1, 3, 2, 2, 2],
             table_name="Trainers",
             controller=self.controller,
         )
