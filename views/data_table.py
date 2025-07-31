@@ -157,7 +157,6 @@ class DataTable(ctk.CTkFrame):
         if row_idx == current_selection:
             # Deselect if clicking same row
             self.selection = None
-            print(f"{self.table_name} row deselected")
         else:
             # Store selection as optimized tuple (table, id)
             item_id = str(self.data[row_idx][0])
@@ -167,10 +166,6 @@ class DataTable(ctk.CTkFrame):
             selected_widgets = self.row_widgets[row_idx]
             for widget in selected_widgets:
                 widget.configure(fg_color=COLORS["accent"])
-
-            # Print selection info using tuple elements
-            table_name, selected_id = self.selection
-            print(f"{table_name} selected: ID={selected_id}")
 
     def _get_row_from_selection(self):
         """Get row index from current selection tuple - used internally"""
