@@ -229,8 +229,28 @@ class DashboardFrame(ctk.CTkFrame):
             self._show_admin_form(admin_to_edit=selected_id)
 
     def _handle_admin_delete(self):
-        """Handle admin deletion with confirmation dialog"""
-        pass
+        """Handle admin deletion through controller - simple like other handlers"""
+        selected_id = self.admin_view.table.get_selected_id()
+        if not selected_id:
+            self._show_error_dialog("Delete Error", "No administrator selected.")
+            return
+
+        # Get username for confirmation dialog
+        username = self.controller.get_admin_username_from_sequential_id(selected_id)
+        if not username:
+            self._show_error_dialog("Delete Error", "Administrator not found.")
+            return
+
+        # Show confirmation dialog
+        if not self._show_delete_confirmation(username):
+            return  # User cancelled
+
+        # Execute deletion
+        result = self.controller.delete_admin_with_permissions(self.current_admin, selected_id)
+        if result["success"]:
+            self._show_admins_table()
+        else:
+            self._show_error_dialog("Delete Error", result["message"])
 
     def _show_error_dialog(self, title: str, message: str):
         """Show error dialog to user"""

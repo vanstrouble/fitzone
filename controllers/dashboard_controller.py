@@ -259,16 +259,45 @@ class DashboardController:
             return None
 
     def get_admin_username_from_cache(self, admin_id: str) -> str:
-        """Get admin username by ID from cached data"""
+        """
+        Get admin username by sequential ID from cached data (for deletion confirmations)
+
+        Args:
+            admin_id: Sequential ID from the table display (1, 2, 3, etc.)
+
+        Returns:
+            Username of the admin or fallback if not found
+        """
         try:
-            admin_data = self.get_admin_data_unified(admin_id, from_cache=True)
-            return (
-                admin_data.get("username", "administrator")
-                if admin_data
-                else "administrator"
-            )
+            # Use the sequential ID function instead of unified function
+            username = self.get_admin_username_from_sequential_id(admin_id)
+            return username if username else "administrator"
         except Exception:
             return "administrator"
+
+    def get_admin_username_from_sequential_id(self, sequential_id: str) -> Optional[str]:
+        """
+        Get admin username from sequential ID shown in table
+
+        Args:
+            sequential_id: Sequential ID shown in the table (1, 2, 3, etc.)
+
+        Returns:
+            Username of the admin or None if not found
+        """
+        try:
+            admin_data_list = self._get_cached_data("admins")
+            sequential_id_int = int(sequential_id)
+
+            # Sequential IDs start from 1, list indices start from 0
+            if 1 <= sequential_id_int <= len(admin_data_list):
+                admin_row = admin_data_list[sequential_id_int - 1]
+                # Username is typically in the second column (index 1)
+                return admin_row[1] if len(admin_row) > 1 else None
+
+            return None
+        except (ValueError, IndexError, Exception):
+            return None
 
     def get_default_section(self, current_admin):
         """
@@ -528,3 +557,128 @@ class DashboardController:
             basic_trainers = self._get_cached_data("trainers")
             # Ensure we only return 4 columns even from basic data
             return [trainer[:4] for trainer in basic_trainers]
+
+    def delete_admin_with_permissions(self, current_admin, admin_id_to_delete) -> Dict[str, Any]:
+        """
+        Deletes an admin if the logged-in user has sufficient permissions.
+        An admin can delete any user. A manager can only delete other managers.
+        For managers: only the admin account is deleted, the associated trainer remains.
+
+        Args:
+            current_admin: Admin object of the currently logged-in user
+            admin_id_to_delete: Sequential ID of the admin to delete (from table display)
+
+        Returns:
+            Dict with success status and message
+        """
+        try:
+            from controllers.crud import delete_admin_by_username, get_admin_by_username
+
+            # Get target username from sequential ID
+            target_username = self.get_admin_username_from_sequential_id(admin_id_to_delete)
+
+            if not target_username:
+                return {
+                    "success": False,
+                    "message": "Administrator not found. Please refresh the page and try again."
+                }
+
+            # Prevent deletion of default admin (username 'admin')
+            if target_username == "admin":
+                return {
+                    "success": False,
+                    "message": (
+                        f"Cannot delete '{target_username}' - this is the default "
+                        f"system administrator account and must be preserved."
+                    )
+                }
+
+            # Get current admin ID
+            current_id = getattr(current_admin, "unique_id", None) or getattr(
+                current_admin, "id", None
+            )
+
+            if not current_id:
+                return {
+                    "success": False,
+                    "message": "Authentication error. Please log in again and try."
+                }
+
+            # Prevent self-deletion
+            if current_admin.username == target_username:
+                return {
+                    "success": False,
+                    "message": (
+                        f"You cannot delete your own account ('{target_username}'). "
+                        f"Ask another administrator to remove your account if needed."
+                    )
+                }
+
+            # Check if current user can create admin accounts (same logic as admin_form.py)
+            current_user_is_admin = self.can_create_admin_accounts(current_admin)
+
+            # Get target admin data to check role
+            target_admin = get_admin_by_username(target_username)
+
+            if not target_admin:
+                return {
+                    "success": False,
+                    "message": (
+                        f"Administrator '{target_username}' not found in the system. "
+                        f"They may have been already deleted."
+                    )
+                }
+
+            target_role = (target_admin.role or "").lower().strip()
+
+            # Permission check: Admin can delete anyone, Manager can only delete other managers
+            if not current_user_is_admin:  # Current user is Manager
+                if target_role == "admin":
+                    return {
+                        "success": False,
+                        "message": (
+                            f"Access denied. As a Manager, you cannot delete "
+                            f"'{target_username}' who has Administrator privileges. "
+                            f"Only Administrators can delete other Administrators."
+                        )
+                    }
+
+            # Attempt deletion by username
+            success = delete_admin_by_username(target_username)
+
+            if success:
+                # Invalidate both admins and trainers cache since trainer associations might change
+                self.invalidate_cache("admins")
+                self.invalidate_cache("trainers")
+
+                # Success message varies based on role
+                if target_role == "manager":
+                    return {
+                        "success": True,
+                        "message": (
+                            f"Manager '{target_username}' has been deleted successfully. "
+                            f"Associated trainers are now available for reassignment."
+                        )
+                    }
+                else:
+                    return {
+                        "success": True,
+                        "message": (
+                            f"Administrator '{target_username}' has been deleted successfully."
+                        )
+                    }
+            else:
+                return {
+                    "success": False,
+                    "message": (
+                        f"Failed to delete '{target_username}'. This may be the last "
+                        f"Administrator in the system, which cannot be removed to "
+                        f"maintain system access."
+                    )
+                }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"System error occurred while deleting administrator: {str(e)}"
+            }
