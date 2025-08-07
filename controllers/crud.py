@@ -469,36 +469,94 @@ def update_admin(admin):
         session.close()
 
 
-def delete_admin(admin_id_to_delete):
+def delete_admin_by_username(username):
     """
-    Elimina un admin por su ID.
+    Deletes an admin by their username.
 
     Args:
-        admin_id_to_delete: ID del admin a eliminar (string o int)
+        username (str): Username of the admin to delete
 
     Returns:
-        bool: True si se eliminó correctamente, False si no se pudo eliminar
+        bool: True if deleted successfully, False otherwise
     """
     session = SessionLocal()
     try:
-        # Buscar el admin a eliminar
+        # Find the admin to delete by username
         admin_db = (
-            session.query(AdminDB).filter(AdminDB.id == admin_id_to_delete).first()
+            session.query(AdminDB).filter(AdminDB.username == username).first()
         )
         if not admin_db:
-            logger.warning(f"Admin with ID {admin_id_to_delete} not found")
+            logger.warning(f"Admin with username '{username}' not found")
             return False
 
-        # Verificar que no sea el último admin del sistema
-        if is_last_admin(session):
-            logger.warning("Cannot delete the last admin in the system")
+        # Check if it's the default admin account (username 'admin')
+        if username == DEFAULT_ADMIN["username"]:
+            logger.warning(f"Cannot delete the default admin account (username: {username})")
             return False
 
-        # Proceder con la eliminación
+        # Check if it's the last admin with ADMIN role in the system
+        # Only check if the admin to delete has ADMIN role
+        admin_domain = db_to_admin(admin_db)
+        if admin_domain.role == AdminRoles.ADMIN:
+            admin_count = session.query(AdminDB).filter(AdminDB.role == AdminRoles.ADMIN).count()
+            if admin_count <= 1:
+                logger.warning("Cannot delete the last admin with ADMIN role in the system")
+                return False
+
+        # Proceed with deletion
         session.delete(admin_db)
         session.commit()
 
-        logger.info(f"Admin '{admin_db.username}' (ID: {admin_id_to_delete}) deleted successfully")
+        logger.info(f"Admin '{username}' (ID: {admin_db.id}) deleted successfully")
+        return True
+
+    except SQLAlchemyError as e:
+        session.rollback()
+        logger.error(f"Error deleting admin: {str(e)}")
+        return False
+    finally:
+        session.close()
+
+
+def delete_admin(unique_id):
+    """
+    Deletes an admin by their ID.
+
+    Args:
+        unique_id: ID of the admin to delete (string or int)
+
+    Returns:
+        bool: True if deleted successfully, False otherwise
+    """
+    session = SessionLocal()
+    try:
+        # Find the admin to delete
+        admin_db = (
+            session.query(AdminDB).filter(AdminDB.id == unique_id).first()
+        )
+        if not admin_db:
+            logger.warning(f"Admin with ID {unique_id} not found")
+            return False
+
+        # Check if it's the default admin account (ID 1)
+        if str(admin_db.id) == "1":
+            logger.warning("Cannot delete the default admin account (ID: 1)")
+            return False
+
+        # Check if it's the last admin with ADMIN role in the system
+        # Only check if the admin to delete has ADMIN role
+        admin_domain = db_to_admin(admin_db)
+        if admin_domain.role == AdminRoles.ADMIN:
+            admin_count = session.query(AdminDB).filter(AdminDB.role == AdminRoles.ADMIN).count()
+            if admin_count <= 1:
+                logger.warning("Cannot delete the last admin with ADMIN role in the system")
+                return False
+
+        # Proceed with deletion
+        session.delete(admin_db)
+        session.commit()
+
+        logger.info(f"Admin '{admin_db.username}' (ID: {unique_id}) deleted successfully")
         return True
 
     except SQLAlchemyError as e:
@@ -557,12 +615,6 @@ def is_admin_username_available(username):
         return False
     finally:
         session.close()
-
-
-def is_last_admin(session):
-    """Checks if there is only one admin with ADMIN role in the database"""
-    admin_count = session.query(AdminDB).filter(AdminDB.role == AdminRoles.ADMIN).count()
-    return admin_count <= 1
 
 
 def ensure_default_admin_exists():
