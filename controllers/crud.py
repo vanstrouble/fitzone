@@ -250,6 +250,23 @@ def update_trainer(trainer):
         trainer_db.start_time = trainer.start_time
         trainer_db.end_time = trainer.end_time
 
+        # Update admin_username if it exists on the trainer object
+        if hasattr(trainer, 'admin_username'):
+            new_admin_username = getattr(trainer, 'admin_username')
+
+            # If setting to a new admin, first clear any existing associations for that admin
+            if new_admin_username and new_admin_username != trainer_db.admin_username:
+                # Clear any other trainers that might be associated with this admin
+                other_trainers = session.query(TrainerDB).filter(
+                    TrainerDB.admin_username == new_admin_username,
+                    TrainerDB.id != trainer.unique_id
+                ).all()
+
+                for other_trainer in other_trainers:
+                    setattr(other_trainer, 'admin_username', None)
+
+            trainer_db.admin_username = new_admin_username
+
         session.commit()
         return True
     except SQLAlchemyError as e:
@@ -293,7 +310,7 @@ def link_trainer_to_admin(trainer_id, admin_username):
             return False
 
         if getattr(admin_db, "role", None) != AdminRoles.MANAGER:
-            admin_db.role = AdminRoles.MANAGER
+            setattr(admin_db, 'role', AdminRoles.MANAGER)
 
         trainer_db.admin_username = admin_username
 

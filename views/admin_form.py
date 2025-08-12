@@ -219,7 +219,7 @@ class AdminFormView(ctk.CTkFrame):
         # Current role info (only shown when editing)
         if self.admin_to_edit:
             admin_data = self.controller.get_admin_data_unified(
-                self.admin_to_edit, from_cache=True
+                str(self.admin_to_edit), from_cache=True, by_sequential_id=True
             )
             if admin_data:
                 current_role = admin_data.get("role", "admin")
@@ -311,14 +311,22 @@ class AdminFormView(ctk.CTkFrame):
         # Initially disable save button
         self.form_buttons.set_save_enabled(False)
 
+        # Load existing data if editing
+        if self.admin_to_edit:
+            self._load_existing_admin_data()
+
     def _on_field_change(self, event=None):
-        """Handle field changes with debounce - wait 300ms before validating"""
+        """Handle field changes with debounce - wait 700ms before validating"""
         # Cancel previous timer if it exists
         if self._validation_timer:
             self.after_cancel(self._validation_timer)
 
-        # Set new timer for 300ms delay
-        self._validation_timer = self.after(700, self._validate_form)
+        # Set new timer for 700ms delay
+        # Use appropriate validation method based on mode
+        validation_method = (
+            self._validate_form_for_edit if self.admin_to_edit else self._validate_form
+        )
+        self._validation_timer = self.after(700, validation_method)
 
     def _validate_form(self, event=None):
         """Validate form fields and enable/disable save button"""
@@ -500,11 +508,14 @@ class AdminFormView(ctk.CTkFrame):
         # Get selected trainer from the table if manager role is selected
         trainer_id = None
         if selected_role == "manager" and hasattr(self, "trainer_view"):
-            trainer_id = self.trainer_view.table.get_selected_id()
+            try:
+                trainer_id = self.trainer_view.table.get_selected_id()
+            except Exception as e:
+                print(f"Warning: Error getting trainer ID: {e}")
 
         return {
-            "username": self.username_entry.get(),
-            "password": self.password_entry.get(),
+            "username": self.username_entry.get().strip(),
+            "password": self.password_entry.get().strip(),
             "role": selected_role,
             "trainer_id": trainer_id,
         }
@@ -547,3 +558,98 @@ class AdminFormView(ctk.CTkFrame):
     def _toggle_repeat_password_visibility(self):
         """Toggle repeat password visibility between hidden and visible"""
         self._toggle_password_visibility("repeat_password")
+
+    def _load_existing_admin_data(self):
+        """Load existing admin data into the form fields"""
+        try:
+            # Ensure admin_to_edit is not None and convert to string
+            if not self.admin_to_edit:
+                print("Warning: No admin ID to edit")
+                return
+
+            # Get admin data using the unified method with sequential ID flag
+            admin_data = self.controller.get_admin_data_unified(
+                str(self.admin_to_edit), from_cache=True, by_sequential_id=True
+            )
+
+            if admin_data:
+                # Pre-fill username
+                self.username_entry.delete(0, "end")
+                self.username_entry.insert(0, admin_data.get("username", ""))
+
+                # Set role
+                self.role_var.set(admin_data.get("role", "admin"))
+                self._on_role_change()
+
+                # For editing, we don't require passwords to be filled
+                # Password fields remain empty - user can optionally change them
+
+                # Enable save button for editing (since username is populated)
+                self._validate_form_for_edit()
+            else:
+                print(f"Warning: Could not load admin data for ID {self.admin_to_edit}")
+        except Exception as e:
+            print(f"Error loading admin data: {e}")
+
+    def _validate_form_for_edit(self):
+        """Validate form for editing mode - more flexible validation"""
+        if not self.admin_to_edit:
+            # For new admin, use strict validation
+            self._validate_form()
+            return
+
+        username = self.username_entry.get().strip()
+        password = self.password_entry.get().strip()
+        repeat_password = self.repeat_password_entry.get().strip()
+
+        # Validate username (always required)
+        username_valid, username_error = self._validate_username(username)
+
+        # For editing: password is optional, but if provided, must be valid
+        password_valid = True
+        password_error = ""
+        passwords_match = True
+
+        if password:  # Only validate if password is provided
+            password_valid, password_error = self._validate_password(password)
+            passwords_match = password == repeat_password
+
+        # Show/hide username error message
+        if username and not username_valid:
+            self.username_error_label.configure(text=username_error)
+            self.username_error_label.pack(
+                anchor="w", pady=(0, 5), after=self.username_label
+            )
+            self.username_entry.configure(border_color=COLORS["danger"][0])
+        else:
+            self.username_error_label.pack_forget()
+            self.username_entry.configure(border_color=("gray60", "gray40"))
+
+        # Show/hide password validation error message
+        if password and not password_valid:
+            self.password_validation_error_label.configure(text=password_error)
+            self.password_validation_error_label.pack(
+                anchor="w", pady=(0, 5), after=self.password_label
+            )
+            self.password_entry.configure(border_color=COLORS["danger"][0])
+        else:
+            self.password_validation_error_label.pack_forget()
+            if passwords_match:  # Only reset color if passwords match
+                self.password_entry.configure(border_color=("gray60", "gray40"))
+
+        # Show/hide password match error message
+        if password and repeat_password and not passwords_match:
+            self.password_error_label.pack(
+                anchor="w", pady=(0, 5), after=self.repeat_password_label
+            )
+            self.password_entry.configure(border_color=COLORS["danger"][0])
+            self.repeat_password_entry.configure(border_color=COLORS["danger"][0])
+        else:
+            self.password_error_label.pack_forget()
+            if password_valid or not password:  # Only reset if password is valid or empty
+                self.repeat_password_entry.configure(border_color=("gray60", "gray40"))
+
+        # For editing: Enable save button if username is valid
+        # Password validation only matters if password is being changed
+        is_valid = bool(username and username_valid and password_valid and passwords_match)
+        self.form_buttons.set_save_enabled(is_valid)

@@ -161,15 +161,15 @@ class DashboardController:
         self._cache_dirty[table_name] = True
         self._clear_filter_cache(table_name)
 
-        # If admins cache is invalidated, also invalidate extended cache
-        if table_name == "admins":
-            self._cache_dirty["admins_extended"] = True
-            self._clear_filter_cache("admins_extended")
+        # Handle dependent cache invalidations
+        dependencies = {
+            "admins": ["admins_extended"],
+            "trainers": ["trainers_with_real_ids"]
+        }
 
-        # If trainers cache is invalidated, also invalidate real IDs cache
-        if table_name == "trainers":
-            self._cache_dirty["trainers_with_real_ids"] = True
-            self._clear_filter_cache("trainers_with_real_ids")
+        for dependent in dependencies.get(table_name, []):
+            self._cache_dirty[dependent] = True
+            self._clear_filter_cache(dependent)
 
     def filter_data(self, table_name: str, query: str) -> List[List[Any]]:
         """Filter data with advanced search algorithms and caching"""
@@ -205,20 +205,44 @@ class DashboardController:
         return self._get_cached_data("users")
 
     def get_admin_data_unified(
-        self, admin_id: str, from_cache: bool = True
+        self, admin_id: str, from_cache: bool = True, by_sequential_id: bool = False
     ) -> Optional[Dict[str, Any]]:
         """
         Unified method to get admin data by ID from cache or database
 
         Args:
-            admin_id: Admin ID
+            admin_id: Admin ID (real ID or sequential ID based on by_sequential_id flag)
             from_cache: If True, use cached data; if False, query database directly
+            by_sequential_id: If True, treat admin_id as sequential ID from table display
 
         Returns:
             Dict with admin data or None if not found
         """
         try:
-            if from_cache:
+            if by_sequential_id:
+                # Get username from sequential ID, then get full data
+                username = self.get_admin_username_from_sequential_id(admin_id)
+                if not username:
+                    return None
+
+                # Get admin data by username from cache
+                admin_data_list = self._get_cached_data("admins_extended")
+                admin_row = next(
+                    (row for row in admin_data_list if row[1] == username), None
+                )
+
+                if admin_row:
+                    return {
+                        "id": admin_row[0],
+                        "username": admin_row[1],
+                        "role": admin_row[2].lower(),
+                        "created_at": admin_row[3],
+                        "unique_id": admin_row[0],
+                        "trainer_id": admin_row[4] if len(admin_row) > 4 else None,
+                    }
+                return None
+
+            elif from_cache:
                 # Use cached extended data with real IDs for better matching
                 admin_data_list = self._get_cached_data("admins_extended")
                 admin_id_str = str(admin_id)
@@ -236,7 +260,7 @@ class DashboardController:
                         "role": admin_row[2].lower(),
                         "created_at": admin_row[3],
                         "unique_id": admin_row[0],
-                        "trainer_id": admin_row[4],
+                        "trainer_id": admin_row[4] if len(admin_row) > 4 else None,
                     }
                 return None
             else:
@@ -250,7 +274,7 @@ class DashboardController:
                 return {
                     "id": admin.unique_id,
                     "username": admin.username,
-                    "role": admin.role,
+                    "role": admin.role.lower() if admin.role else "admin",
                     "created_at": admin.created_at,
                     "unique_id": admin.unique_id,
                     "trainer_id": getattr(admin, 'trainer_id', None),
@@ -268,12 +292,8 @@ class DashboardController:
         Returns:
             Username of the admin or fallback if not found
         """
-        try:
-            # Use the sequential ID function instead of unified function
-            username = self.get_admin_username_from_sequential_id(admin_id)
-            return username if username else "administrator"
-        except Exception:
-            return "administrator"
+        username = self.get_admin_username_from_sequential_id(admin_id)
+        return username if username else "administrator"
 
     def get_admin_username_from_sequential_id(self, sequential_id: str) -> Optional[str]:
         """
@@ -361,7 +381,7 @@ class DashboardController:
         Create or update an admin based on admin_form_or_id parameter.
 
         Args:
-            admin_data: Dict with admin data (username, password, role, etc.)
+            admin_data: Dict with admin data (username, password, role, trainer_id, etc.)
             admin_form_or_id: Can be:
                 - AdminFormView object (has admin_to_edit attribute) for form operations
                 - String/Int ID for direct profile updates
@@ -370,6 +390,23 @@ class DashboardController:
         Returns:
             Dict with success status and message
         """
+        # Protection against double execution
+        import time
+        current_time = time.time()
+        last_call_key = f"save_admin_{admin_data.get('username', '')}"
+
+        if hasattr(self, '_last_save_calls'):
+            if last_call_key in self._last_save_calls:
+                time_diff = current_time - self._last_save_calls[last_call_key]
+                if time_diff < 1.0:  # Less than 1 second apart
+                    print(f"DEBUG: Ignoring duplicate save call for {admin_data.get('username')} "
+                          f"(time diff: {time_diff:.2f}s)")
+                    return {"success": False, "message": "Operation already in progress"}
+        else:
+            self._last_save_calls = {}
+
+        self._last_save_calls[last_call_key] = current_time
+
         try:
             # Determine if we're updating
             admin_id_to_update = None
@@ -383,7 +420,16 @@ class DashboardController:
                     and admin_form_or_id.admin_to_edit
                 ):
                     # Form object with admin_to_edit (from admin_form.py)
-                    admin_id_to_update = admin_form_or_id.admin_to_edit
+                    # This could be a sequential ID, need to get the real ID
+                    sequential_id = admin_form_or_id.admin_to_edit
+                    admin_data_from_cache = self.get_admin_data_unified(
+                        sequential_id, from_cache=True, by_sequential_id=True
+                    )
+                    if admin_data_from_cache:
+                        admin_id_to_update = str(admin_data_from_cache["unique_id"])
+                    else:
+                        # Fallback: try treating it as a real ID
+                        admin_id_to_update = str(sequential_id)
 
             if admin_id_to_update:
                 # UPDATE EXISTING ADMIN
@@ -394,23 +440,63 @@ class DashboardController:
                 if not existing_admin:
                     return {"success": False, "message": "Admin not found"}
 
-                # Update only provided fields
-                if admin_data.get("username"):
-                    existing_admin.username = admin_data["username"]
+                # Update only provided fields (non-empty values)
+                if admin_data.get("username") and admin_data["username"].strip():
+                    existing_admin.username = admin_data["username"].strip()
 
-                # Only update password if provided
-                if admin_data.get("password"):
+                # Only update password if provided and not empty
+                if admin_data.get("password") and admin_data["password"].strip():
                     existing_admin.set_password(admin_data["password"])
 
                 # Update role if provided
-                if admin_data.get("role"):
+                if admin_data.get("role") and admin_data["role"].strip():
                     existing_admin.role = admin_data["role"]
+
+                # Handle trainer association for managers
+                if admin_data.get("role") == "manager":
+                    trainer_id = admin_data.get("trainer_id")
+
+                    # ALWAYS clear existing associations for this admin first
+                    username = str(existing_admin.username) if existing_admin.username else ""
+                    if username:
+                        self._clear_trainer_admin_association(username)
+                        # Force cache invalidation to ensure fresh data
+                        self.invalidate_cache("trainers")
+
+                    if trainer_id and trainer_id.strip():
+                        # Convert sequential ID to real trainer ID if needed
+                        real_trainer_id = self._get_real_trainer_id(trainer_id.strip())
+
+                        # Update trainer to point to this admin
+                        from controllers.crud import get_trainer, update_trainer
+                        trainer = get_trainer(real_trainer_id)
+                        if trainer:
+                            current_admin_username = getattr(trainer, 'admin_username', None)
+
+                            # ALWAYS clear any existing association for this trainer first
+                            if current_admin_username:
+                                setattr(trainer, 'admin_username', None)
+                                update_trainer(trainer)
+
+                            # Set new admin_username attribute
+                            setattr(trainer, 'admin_username', existing_admin.username)
+
+                            # Update trainer in database
+                            success = update_trainer(trainer)
+                            if not success:
+                                print(f"Warning: Failed to update trainer {real_trainer_id}")
+                else:
+                    # Not a manager role, clear trainer association
+                    username = str(existing_admin.username) if existing_admin.username else ""
+                    if username:
+                        self._clear_trainer_admin_association(username)
 
                 # Attempt to update - CRUD will raise exceptions on errors
                 update_admin(existing_admin)
 
                 # If we reach here, update was successful
                 self.invalidate_cache("admins")
+                self.invalidate_cache("trainers")  # Trainer associations might have changed
                 return {
                     "success": True,
                     "message": f"Administrator '{existing_admin.username}' "
@@ -432,11 +518,42 @@ class DashboardController:
                     role=admin_data.get("role", "admin"),
                 )
 
-                # Attempt to create - CRUD will raise exceptions on errors
-                create_admin(admin)
+                # Handle trainer association for new managers
+                if admin_data.get("role") == "manager":
+                    trainer_id = admin_data.get("trainer_id")
+                    if trainer_id and trainer_id.strip():
+                        # Convert sequential ID to real trainer ID if needed
+                        real_trainer_id = self._get_real_trainer_id(trainer_id.strip())
+
+                        # Create admin first, then associate trainer
+                        create_admin(admin)
+
+                        # Now associate trainer with this admin
+                        from controllers.crud import get_trainer, update_trainer
+                        trainer = get_trainer(real_trainer_id)
+                        if trainer:
+                            current_admin_username = getattr(trainer, 'admin_username', None)
+
+                            # Clear any existing association for this trainer
+                            if current_admin_username:
+                                setattr(trainer, 'admin_username', None)
+                                update_trainer(trainer)
+
+                            setattr(trainer, 'admin_username', admin.username)
+
+                            success = update_trainer(trainer)
+                            if not success:
+                                print(f"Warning: Failed to update trainer {real_trainer_id}")
+                    else:
+                        # Create admin without trainer association
+                        create_admin(admin)
+                else:
+                    # Not a manager, just create admin
+                    create_admin(admin)
 
                 # If we reach here, creation was successful
                 self.invalidate_cache("admins")
+                self.invalidate_cache("trainers")  # Trainer associations might have changed
                 return {
                     "success": True,
                     "message": f"Administrator '{admin.username}' created successfully",
@@ -483,50 +600,17 @@ class DashboardController:
 
         return is_admin
 
-    def get_available_trainers_for_manager(self) -> List[List[Any]]:
+    def get_available_trainers(self, for_form: bool = False) -> List[List[Any]]:
         """
         Get trainers that are not yet associated with any manager account
-        Uses cached data efficiently to check trainer associations
+
+        Args:
+            for_form: If True, returns only 4 columns for form compatibility.
+                     If False, returns 5 columns including Manager column.
 
         Returns:
             List of trainer data for trainers not associated with managers
             (with sequential IDs for display)
-        """
-        try:
-            # Get trainers with real IDs for filtering logic
-            trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
-            extended_admin_data = self._get_cached_data("admins_extended")
-
-            # Extract trainer IDs that are already associated with managers
-            associated_trainer_ids = {
-                str(admin_row[4]) for admin_row in extended_admin_data
-                if len(admin_row) >= 5 and admin_row[4] is not None
-            }
-
-            # Filter available trainers using list comprehension with enumeration
-            available_trainers_with_real_ids = [
-                trainer_row for trainer_row in trainers_with_real_ids
-                if str(trainer_row[0]) not in associated_trainer_ids
-            ]
-
-            # Convert to display format with sequential IDs
-            return [
-                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3], trainer_row[4]]
-                for idx, trainer_row in enumerate(available_trainers_with_real_ids)
-            ]
-
-        except Exception as e:
-            # If extended data fails, fallback to all trainers (with sequential IDs)
-            print(f"Warning: Could not filter trainers by association: {e}")
-            return self._get_cached_data("trainers")
-
-    def get_available_trainers_for_form(self) -> List[List[Any]]:
-        """
-        Get trainers available for manager association - FOR ADMIN FORM USE ONLY
-        Returns only 4 columns (without Manager column) for form compatibility
-
-        Returns:
-            List of trainer data [ID, Name, Specialty, Schedule] for form display
         """
         try:
             # Get trainers with real IDs for filtering logic
@@ -545,18 +629,95 @@ class DashboardController:
                 if str(trainer_row[0]) not in associated_trainer_ids
             ]
 
-            # Convert to display format with sequential IDs (only 4 columns for form)
-            return [
-                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3]]
-                for idx, trainer_row in enumerate(available_trainers_with_real_ids)
-            ]
+            # Convert to display format with sequential IDs
+            if for_form:
+                # Only 4 columns for form compatibility
+                return [
+                    [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3]]
+                    for idx, trainer_row in enumerate(available_trainers_with_real_ids)
+                ]
+            else:
+                # Full 5 columns including Manager column
+                return [
+                    [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3], trainer_row[4]]
+                    for idx, trainer_row in enumerate(available_trainers_with_real_ids)
+                ]
 
         except Exception as e:
-            # If extended data fails, fallback to basic trainer data (4 columns)
+            # If extended data fails, fallback to basic trainer data
             print(f"Warning: Could not filter trainers by association: {e}")
             basic_trainers = self._get_cached_data("trainers")
-            # Ensure we only return 4 columns even from basic data
-            return [trainer[:4] for trainer in basic_trainers]
+
+            if for_form:
+                # Ensure we only return 4 columns even from basic data
+                return [trainer[:4] for trainer in basic_trainers]
+            else:
+                return basic_trainers
+
+    def get_available_trainers_for_manager(self) -> List[List[Any]]:
+        """
+        Get trainers available for manager view (5 columns including Manager)
+
+        Returns:
+            List of trainer data for trainers not associated with managers
+        """
+        return self.get_available_trainers(for_form=False)
+
+    def get_available_trainers_for_form(self) -> List[List[Any]]:
+        """
+        Get trainers available for manager association - FOR ADMIN FORM USE ONLY
+        Returns only 4 columns (without Manager column) for form compatibility
+
+        Returns:
+            List of trainer data [ID, Name, Specialty, Schedule] for form display
+        """
+        return self.get_available_trainers(for_form=True)
+
+    def _validate_admin_deletion(
+        self, current_admin, target_username: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Validate if admin deletion is allowed. Returns error dict if not allowed, None if valid.
+
+        Args:
+            current_admin: Admin object of the currently logged-in user
+            target_username: Username of the admin to delete
+
+        Returns:
+            Dict with error if validation fails, None if validation passes
+        """
+        # Prevent deletion of default admin
+        if target_username == "admin":
+            return {
+                "success": False,
+                "message": (
+                    f"Cannot delete '{target_username}' - this is the default "
+                    f"system administrator account and must be preserved."
+                )
+            }
+
+        # Get current admin ID
+        current_id = getattr(current_admin, "unique_id", None) or getattr(
+            current_admin, "id", None
+        )
+
+        if not current_id:
+            return {
+                "success": False,
+                "message": "Authentication error. Please log in again and try."
+            }
+
+        # Prevent self-deletion
+        if current_admin.username == target_username:
+            return {
+                "success": False,
+                "message": (
+                    f"You cannot delete your own account ('{target_username}'). "
+                    f"Ask another administrator to remove your account if needed."
+                )
+            }
+
+        return None  # Validation passed
 
     def delete_admin_with_permissions(self, current_admin, admin_id_to_delete) -> Dict[str, Any]:
         """
@@ -572,9 +733,9 @@ class DashboardController:
             Dict with success status and message
         """
         try:
-            from controllers.crud import delete_admin_by_username, get_admin_by_username
+            from controllers.crud import delete_admin_by_username
 
-            # Get target username from sequential ID
+            # Get target username from sequential ID (uses cache)
             target_username = self.get_admin_username_from_sequential_id(admin_id_to_delete)
 
             if not target_username:
@@ -583,53 +744,35 @@ class DashboardController:
                     "message": "Administrator not found. Please refresh the page and try again."
                 }
 
-            # Prevent deletion of default admin (username 'admin')
-            if target_username == "admin":
-                return {
-                    "success": False,
-                    "message": (
-                        f"Cannot delete '{target_username}' - this is the default "
-                        f"system administrator account and must be preserved."
-                    )
-                }
+            # Common validation checks
+            validation_error = self._validate_admin_deletion(current_admin, target_username)
+            if validation_error:
+                return validation_error
 
-            # Get current admin ID
-            current_id = getattr(current_admin, "unique_id", None) or getattr(
-                current_admin, "id", None
-            )
-
-            if not current_id:
-                return {
-                    "success": False,
-                    "message": "Authentication error. Please log in again and try."
-                }
-
-            # Prevent self-deletion
-            if current_admin.username == target_username:
-                return {
-                    "success": False,
-                    "message": (
-                        f"You cannot delete your own account ('{target_username}'). "
-                        f"Ask another administrator to remove your account if needed."
-                    )
-                }
-
-            # Check if current user can create admin accounts (same logic as admin_form.py)
+            # Check if current user can create admin accounts (uses cache)
             current_user_is_admin = self.can_create_admin_accounts(current_admin)
 
-            # Get target admin data to check role
-            target_admin = get_admin_by_username(target_username)
+            # Get target admin data from cache first, then fallback to DB if needed
+            target_admin_data = self.get_admin_data_unified(
+                admin_id_to_delete, from_cache=True, by_sequential_id=True
+            )
 
-            if not target_admin:
-                return {
-                    "success": False,
-                    "message": (
-                        f"Administrator '{target_username}' not found in the system. "
-                        f"They may have been already deleted."
-                    )
-                }
+            if not target_admin_data:
+                # Fallback to direct DB query if cache fails
+                from controllers.crud import get_admin_by_username
+                target_admin = get_admin_by_username(target_username)
 
-            target_role = (target_admin.role or "").lower().strip()
+                if not target_admin:
+                    return {
+                        "success": False,
+                        "message": (
+                            f"Administrator '{target_username}' not found in the system. "
+                            f"They may have been already deleted."
+                        )
+                    }
+                target_role = (target_admin.role or "").lower().strip()
+            else:
+                target_role = target_admin_data.get("role", "").lower().strip()
 
             # Permission check: Admin can delete anyone, Manager can only delete other managers
             if not current_user_is_admin:  # Current user is Manager
@@ -682,3 +825,68 @@ class DashboardController:
                 "success": False,
                 "message": f"System error occurred while deleting administrator: {str(e)}"
             }
+
+    def _get_real_trainer_id(self, sequential_or_real_id: str) -> Optional[str]:
+        """
+        Convert sequential trainer ID to real trainer ID
+
+        Args:
+            sequential_or_real_id: Either sequential ID (1, 2, 3...) or real DB ID
+
+        Returns:
+            Real trainer ID from database or None if not found
+        """
+        try:
+            # Try to convert to int to see if it's a sequential ID
+            sequential_id_int = int(sequential_or_real_id)
+
+            # If it's a small number (1-1000), treat as sequential ID
+            if 1 <= sequential_id_int <= 1000:
+                # Get trainers with real IDs
+                trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
+
+                # Sequential IDs start from 1, list indices start from 0
+                if 1 <= sequential_id_int <= len(trainers_with_real_ids):
+                    trainer_row = trainers_with_real_ids[sequential_id_int - 1]
+                    # Real ID is typically in the first column (index 0)
+                    return str(trainer_row[0]) if len(trainer_row) > 0 else None
+
+                return None
+            else:
+                # If it's a large number, assume it's already a real ID
+                return str(sequential_or_real_id)
+
+        except (ValueError, IndexError, Exception):
+            # If conversion fails, assume it's already a real ID
+            return str(sequential_or_real_id) if sequential_or_real_id else None
+
+    def _clear_trainer_admin_association(self, admin_username: str):
+        """
+        Clear any trainer associations for the given admin username
+
+        Args:
+            admin_username: Username of the admin whose trainer associations to clear
+        """
+        try:
+            from controllers.crud import get_all_trainers, update_trainer
+
+            # Get all trainers directly from database (fresh data)
+            all_trainers = get_all_trainers()
+
+            cleared_count = 0
+            # Find trainers associated with this admin and clear association
+            for trainer in all_trainers:
+                current_admin_username = getattr(trainer, 'admin_username', None)
+
+                if current_admin_username == admin_username:
+                    setattr(trainer, 'admin_username', None)
+                    success = update_trainer(trainer)
+                    if success:
+                        cleared_count += 1
+
+            # Only print if there were associations to clear
+            if cleared_count > 0:
+                print(f"Cleared {cleared_count} trainer associations for admin {admin_username}")
+
+        except Exception as e:
+            print(f"Error clearing trainer associations: {e}")
