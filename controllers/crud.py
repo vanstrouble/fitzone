@@ -464,6 +464,10 @@ def update_admin(admin):
             logger.warning(f"Admin with ID {admin.unique_id} not found")
             raise ValueError(f"Admin with ID {admin.unique_id} not found")
 
+        # Store old username to update trainer associations if username changes
+        old_username = admin_db.username
+        new_username = admin.username
+
         # Update username
         admin_db.username = admin.username
 
@@ -474,6 +478,15 @@ def update_admin(admin):
 
         # Update role
         admin_db.role = admin.role
+
+        # If username changed, update all trainer associations
+        if old_username != new_username:
+            trainers_to_update = session.query(TrainerDB).filter(
+                TrainerDB.admin_username == old_username
+            ).all()
+
+            for trainer_db in trainers_to_update:
+                trainer_db.admin_username = new_username
 
         session.commit()
         return True
