@@ -141,6 +141,13 @@ class DashboardController:
                 self._data_cache[table_name] = (
                     self.data_formatter.get_formatted_user_data()
                 )
+            elif table_name == "available trainers":
+                # Handle available trainers for search (4 columns without Manager column)
+                self._data_cache[table_name] = self.get_available_trainers_for_form()
+            else:
+                # Handle unknown table names gracefully
+                print(f"Warning: Unknown table name '{table_name}', returning empty data")
+                self._data_cache[table_name] = []
 
             # Mark as clean and clear related filter cache
             self._cache_dirty[table_name] = False
