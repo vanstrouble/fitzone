@@ -12,7 +12,14 @@ class UserFormView(ctk.CTkFrame):
 
     EMAIL_PATTERN = r"^[\w\.-]+@[\w\.-]+\.\w+$"
 
-    def __init__(self, master, on_save=None, on_cancel=None, user_to_edit=None, current_admin=None):
+    def __init__(
+        self,
+        master,
+        on_save=None,
+        on_cancel=None,
+        user_to_edit=None,
+        current_admin=None,
+    ):
         super().__init__(master, fg_color=("white", "gray17"), corner_radius=15)
         self.on_save = on_save
         self.on_cancel = on_cancel
@@ -28,7 +35,9 @@ class UserFormView(ctk.CTkFrame):
             self._load_existing_user_data()
 
     def _create_widgets(self):
-        self.scrollable = ctk.CTkScrollableFrame(self, fg_color="transparent", corner_radius=0)
+        self.scrollable = ctk.CTkScrollableFrame(
+            self, fg_color="transparent", corner_radius=0
+        )
         self.scrollable.pack(fill="both", expand=True, padx=0, pady=0)
 
         title_frame = ctk.CTkFrame(self.scrollable, fg_color="transparent")
@@ -43,7 +52,11 @@ class UserFormView(ctk.CTkFrame):
 
         desc_label = ctk.CTkLabel(
             title_frame,
-            text=("Enter member details" if not self.user_to_edit else "Modify member details"),
+            text=(
+                "Enter member details"
+                if not self.user_to_edit
+                else "Modify member details"
+            ),
             font=ctk.CTkFont(size=14),
             text_color=COLORS["text_secondary"],
         )
@@ -53,30 +66,46 @@ class UserFormView(ctk.CTkFrame):
         form.pack(fill="both", expand=True, padx=20, pady=10)
 
         # Name
-        self.name_label = ctk.CTkLabel(form, text="Name:", font=ctk.CTkFont(size=14, weight="bold"))
+        self.name_label = ctk.CTkLabel(
+            form, text="Name:", font=ctk.CTkFont(size=14, weight="bold")
+        )
         self.name_label.pack(anchor="w", pady=(0, 5))
-        self.name_entry = ctk.CTkEntry(form, height=36, placeholder_text="Enter name", corner_radius=8)
+        self.name_entry = ctk.CTkEntry(
+            form, height=36, placeholder_text="Enter name", corner_radius=8
+        )
         self.name_entry.pack(fill="x", pady=(0, 10))
         self.name_entry.bind("<KeyRelease>", self._on_field_change)
 
         # Lastname
-        self.lastname_label = ctk.CTkLabel(form, text="Lastname:", font=ctk.CTkFont(size=14, weight="bold"))
+        self.lastname_label = ctk.CTkLabel(
+            form, text="Lastname:", font=ctk.CTkFont(size=14, weight="bold")
+        )
         self.lastname_label.pack(anchor="w", pady=(0, 5))
-        self.lastname_entry = ctk.CTkEntry(form, height=36, placeholder_text="Enter lastname", corner_radius=8)
+        self.lastname_entry = ctk.CTkEntry(
+            form, height=36, placeholder_text="Enter lastname", corner_radius=8
+        )
         self.lastname_entry.pack(fill="x", pady=(0, 10))
         self.lastname_entry.bind("<KeyRelease>", self._on_field_change)
 
         # Email
-        self.email_label = ctk.CTkLabel(form, text="Email:", font=ctk.CTkFont(size=14, weight="bold"))
+        self.email_label = ctk.CTkLabel(
+            form, text="Email:", font=ctk.CTkFont(size=14, weight="bold")
+        )
         self.email_label.pack(anchor="w", pady=(0, 5))
-        self.email_entry = ctk.CTkEntry(form, height=36, placeholder_text="Enter email", corner_radius=8)
+        self.email_entry = ctk.CTkEntry(
+            form, height=36, placeholder_text="Enter email", corner_radius=8
+        )
         self.email_entry.pack(fill="x", pady=(0, 10))
         self.email_entry.bind("<KeyRelease>", self._on_field_change)
 
         # Phone
-        self.phone_label = ctk.CTkLabel(form, text="Phone:", font=ctk.CTkFont(size=14, weight="bold"))
+        self.phone_label = ctk.CTkLabel(
+            form, text="Phone:", font=ctk.CTkFont(size=14, weight="bold")
+        )
         self.phone_label.pack(anchor="w", pady=(0, 5))
-        self.phone_entry = ctk.CTkEntry(form, height=36, placeholder_text="Enter phone (optional)", corner_radius=8)
+        self.phone_entry = ctk.CTkEntry(
+            form, height=36, placeholder_text="Enter phone (optional)", corner_radius=8
+        )
         self.phone_entry.pack(fill="x", pady=(0, 10))
 
         # Membership type and status
@@ -85,27 +114,49 @@ class UserFormView(ctk.CTkFrame):
         ms_frame.grid_columnconfigure(0, weight=1)
         ms_frame.grid_columnconfigure(1, weight=1)
 
-        self.membership_label = ctk.CTkLabel(ms_frame, text="Membership:", font=ctk.CTkFont(size=14))
+        self.membership_label = ctk.CTkLabel(
+            ms_frame, text="Membership:", font=ctk.CTkFont(size=14)
+        )
         self.membership_label.grid(row=0, column=0, sticky="w")
-        self.membership_combo = ctk.CTkComboBox(ms_frame, values=["Basic", "Premium", "VIP"], height=36, corner_radius=8)
+        self.membership_combo = ctk.CTkComboBox(
+            ms_frame, values=["Basic", "Premium", "VIP"], height=36, corner_radius=8
+        )
         self.membership_combo.grid(row=1, column=0, sticky="ew", padx=(0, 8))
 
-        self.status_label = ctk.CTkLabel(ms_frame, text="Status:", font=ctk.CTkFont(size=14))
+        self.status_label = ctk.CTkLabel(
+            ms_frame, text="Status:", font=ctk.CTkFont(size=14)
+        )
         self.status_label.grid(row=0, column=1, sticky="w")
-        self.status_combo = ctk.CTkComboBox(ms_frame, values=["Active", "Suspended", "Expired"], height=36, corner_radius=8)
+        self.status_combo = ctk.CTkComboBox(
+            ms_frame,
+            values=["Active", "Suspended", "Expired"],
+            height=36,
+            corner_radius=8,
+        )
         self.status_combo.grid(row=1, column=1, sticky="ew")
 
         # Join date (optional free text or datepicker later)
-        self.join_label = ctk.CTkLabel(form, text="Join Date (YYYY-MM-DD, optional):", font=ctk.CTkFont(size=14, weight="bold"))
+        self.join_label = ctk.CTkLabel(
+            form,
+            text="Join Date (YYYY-MM-DD, optional):",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
         self.join_label.pack(anchor="w", pady=(0, 5))
-        self.join_entry = ctk.CTkEntry(form, height=36, placeholder_text="2024-01-01", corner_radius=8)
+        self.join_entry = ctk.CTkEntry(
+            form, height=36, placeholder_text="2024-01-01", corner_radius=8
+        )
         self.join_entry.pack(fill="x", pady=(0, 10))
 
         # Buttons
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         buttons_frame.pack(fill="x", padx=20, pady=(10, 20))
 
-        self.form_buttons = FormButtons(buttons_frame, on_save=self.on_save, on_cancel=self.on_cancel, get_form_data=self.get_form_data)
+        self.form_buttons = FormButtons(
+            buttons_frame,
+            on_save=self.on_save,
+            on_cancel=self.on_cancel,
+            get_form_data=self.get_form_data,
+        )
         self.form_buttons.pack(fill="x")
         self.form_buttons.set_save_enabled(False)
 
@@ -120,6 +171,7 @@ class UserFormView(ctk.CTkFrame):
         email = self.email_entry.get().strip()
 
         import re
+
         email_valid = True
         if email:
             email_valid = bool(re.match(self.EMAIL_PATTERN, email))
