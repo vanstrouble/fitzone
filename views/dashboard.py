@@ -9,6 +9,8 @@ from views.admin_form import AdminFormView
 from views.components.table_with_header import TableWithHeaderView
 from views.components.view_with_header import ViewWithHeaderView
 from views.welcome import WelcomeView
+from views.trainer_form import TrainerFormView
+from views.user_form import UserFormView
 
 
 class DashboardFrame(ctk.CTkFrame):
@@ -133,6 +135,9 @@ class DashboardFrame(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2, 2],
             table_name="Trainers",
             controller=self.controller,
+            crud_callbacks={
+                "on_add": lambda: self._show_trainer_form(),
+            },
         )
         self.trainer_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -151,6 +156,9 @@ class DashboardFrame(ctk.CTkFrame):
             column_weights=[1, 3, 2, 2, 2],
             table_name="Users",
             controller=self.controller,
+            crud_callbacks={
+                "on_add": lambda: self._show_user_form(),
+            },
         )
         self.user_view.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -221,6 +229,73 @@ class DashboardFrame(ctk.CTkFrame):
     def _handle_admin_cancel(self):
         # Return to the admins table
         self._show_admins_table()
+
+    # Trainer form handlers
+    def _show_trainer_form(self, trainer_to_edit=None):
+        for widget in self.content_container.winfo_children():
+            widget.destroy()
+
+        self.current_trainer_form = TrainerFormView(
+            self.content_container,
+            on_save=self._handle_trainer_save,
+            on_cancel=self._handle_trainer_cancel,
+            trainer_to_edit=trainer_to_edit,
+            current_admin=self.current_admin,
+        )
+        self.current_trainer_form.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def _handle_trainer_save(self, trainer_data):
+        try:
+            # Prefer controller.save_trainer_data if implemented
+            if hasattr(self.controller, 'save_trainer_data'):
+                result = self.controller.save_trainer_data(trainer_data, self.current_trainer_form)
+            elif hasattr(self.controller, 'create_trainer'):
+                result = self.controller.create_trainer(trainer_data)
+            else:
+                raise RuntimeError('Controller does not implement trainer save')
+
+            if result.get("success"):
+                self._show_trainers_table()
+            else:
+                self._show_error_dialog("Save Error", result.get('message', 'Unknown error'))
+        except Exception as e:
+            self._show_error_dialog("Save Error", f"Error saving trainer: {e}")
+
+    def _handle_trainer_cancel(self):
+        self._show_trainers_table()
+
+    # User form handlers
+    def _show_user_form(self, user_to_edit=None):
+        for widget in self.content_container.winfo_children():
+            widget.destroy()
+
+        self.current_user_form = UserFormView(
+            self.content_container,
+            on_save=self._handle_user_save,
+            on_cancel=self._handle_user_cancel,
+            user_to_edit=user_to_edit,
+            current_admin=self.current_admin,
+        )
+        self.current_user_form.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def _handle_user_save(self, user_data):
+        try:
+            if hasattr(self.controller, 'save_user_data'):
+                result = self.controller.save_user_data(user_data, self.current_user_form)
+            elif hasattr(self.controller, 'create_user'):
+                result = self.controller.create_user(user_data)
+            else:
+                raise RuntimeError('Controller does not implement user save')
+
+            if result.get("success"):
+                self._show_users_table()
+            else:
+                self._show_error_dialog("Save Error", result.get('message', 'Unknown error'))
+        except Exception as e:
+            self._show_error_dialog("Save Error", f"Error saving user: {e}")
+
+    def _handle_user_cancel(self):
+        self._show_users_table()
 
     def _handle_admin_update(self):
         """Handle admin update by getting selected ID and showing form with data"""
