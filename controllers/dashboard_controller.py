@@ -897,3 +897,277 @@ class DashboardController:
 
         except Exception as e:
             print(f"Error clearing trainer associations: {e}")
+
+    def create_entity_data(
+        self,
+        entity_type: str,
+        entity_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Create Admin, Trainer, or User (single-responsibility)."""
+        entity_type = (entity_type or "").strip().lower()
+
+        # Anti double-execution guard
+        import time
+        name_key = entity_data.get("name", entity_data.get("username", ""))
+        last_call_key = f"create_{entity_type}_{name_key}"
+        if hasattr(self, "_last_save_calls") and last_call_key in self._last_save_calls:
+            if time.time() - self._last_save_calls[last_call_key] < 1.0:
+                return {"success": False, "message": "Operation already in progress"}
+        else:
+            self._last_save_calls = {}
+        self._last_save_calls[last_call_key] = time.time()
+
+        try:
+            if entity_type == "admin":
+                # Leverage existing implementation
+                return self.save_admin_data(entity_data, None)
+
+            if entity_type == "trainer":
+                from types import SimpleNamespace
+                from datetime import datetime
+                trainer = SimpleNamespace()
+                for key in [
+                    "name", "lastname", "email", "phone",
+                    "specialty", "start_time", "end_time",
+                ]:
+                    val = entity_data.get(key)
+                    if isinstance(val, str):
+                        val = val.strip()
+                    if val not in (None, ""):
+                        setattr(trainer, key, val)
+                # Required/expected attributes by converters/DB schema
+                if not hasattr(trainer, "age"):
+                    setattr(trainer, "age", None)
+                if not hasattr(trainer, "created_at"):
+                    setattr(trainer, "created_at", datetime.now().strftime("%Y-%m-%d %H:00"))
+                if "admin_username" in entity_data:
+                    setattr(trainer, "admin_username", entity_data.get("admin_username"))
+
+                from controllers.crud import create_trainer
+                created = create_trainer(trainer)
+                if not created:
+                    return {"success": False, "message": "Failed to create trainer"}
+
+                self.invalidate_cache("trainers")
+                self.invalidate_cache("admins")
+                return {
+                    "success": True,
+                    "message": f"Trainer '{getattr(trainer, 'name', '')}' created successfully",
+                }
+
+            if entity_type == "user":
+                from types import SimpleNamespace
+                from datetime import datetime
+                user = SimpleNamespace()
+                for key in [
+                    "name", "lastname", "email", "phone",
+                    "membership_type", "status",
+                ]:
+                    val = entity_data.get(key)
+                    if key == "membership_type" and (val is None or val == ""):
+                        val = "Basic"
+                    if isinstance(val, str):
+                        val = val.strip()
+                    if val not in (None, ""):
+                        setattr(user, key, val)
+                # Required/expected attributes by converters/DB schema
+                if not hasattr(user, "age"):
+                    setattr(user, "age", None)
+                if not hasattr(user, "created_at"):
+                    setattr(user, "created_at", datetime.now().strftime("%Y-%m-%d %H:00"))
+                if not hasattr(user, "renovation_date"):
+                    setattr(user, "renovation_date", None)
+
+                from controllers.crud import create_user
+                created = create_user(user)
+                if not created:
+                    return {"success": False, "message": "Failed to create member"}
+
+                self.invalidate_cache("users")
+                return {
+                    "success": True,
+                    "message": f"Member '{getattr(user, 'name', '')}' created successfully",
+                }
+
+            return {"success": False, "message": f"Unknown entity type '{entity_type}'"}
+        except Exception as e:
+            username = entity_data.get("username", entity_data.get("name", ""))
+            return self._handle_database_error(e, str(username))
+
+    def update_entity_data(
+        self,
+        entity_type: str,
+        entity_data: Dict[str, Any],
+        form_or_id=None,
+    ) -> Dict[str, Any]:
+        """Update Admin, Trainer, or User (single-responsibility)."""
+        entity_type = (entity_type or "").strip().lower()
+
+        # Anti double-execution guard
+        import time
+        name_key = entity_data.get("name", entity_data.get("username", ""))
+        last_call_key = f"update_{entity_type}_{name_key}"
+        if hasattr(self, "_last_save_calls") and last_call_key in self._last_save_calls:
+            if time.time() - self._last_save_calls[last_call_key] < 1.0:
+                return {"success": False, "message": "Operation already in progress"}
+        else:
+            self._last_save_calls = {}
+        self._last_save_calls[last_call_key] = time.time()
+
+        try:
+            if entity_type == "admin":
+                return self.save_admin_data(entity_data, form_or_id)
+
+            if entity_type == "trainer":
+                # Resolve ID
+                trainer_id = None
+                if isinstance(form_or_id, (str, int)):
+                    trainer_id = self._get_real_trainer_id(str(form_or_id))
+                else:
+                    to_edit = getattr(form_or_id, "trainer_to_edit", None)
+                    if to_edit:
+                        trainer_id = self._get_real_trainer_id(str(to_edit))
+
+                from controllers.crud import get_trainer, update_trainer
+                trainer = get_trainer(trainer_id)
+                if not trainer:
+                    return {"success": False, "message": "Trainer not found"}
+
+                for key in [
+                    "name", "lastname", "email", "phone",
+                    "specialty", "start_time", "end_time",
+                ]:
+                    if key in entity_data and entity_data.get(key) is not None:
+                        val = entity_data.get(key)
+                        if isinstance(val, str):
+                            val = val.strip()
+                        if val != "":
+                            setattr(trainer, key, val)
+                if "admin_username" in entity_data:
+                    setattr(trainer, "admin_username", entity_data.get("admin_username"))
+
+                success = update_trainer(trainer)
+                if not success:
+                    return {"success": False, "message": "Failed to update trainer"}
+
+                self.invalidate_cache("trainers")
+                self.invalidate_cache("admins")
+                return {
+                    "success": True,
+                    "message": (
+                        f"Trainer '{getattr(trainer, 'name', 'record')}' "
+                        "updated successfully"
+                    ),
+                }
+
+            if entity_type == "user":
+                # Resolve ID
+                user_id = None
+                if isinstance(form_or_id, (str, int)):
+                    user_id = self._get_real_user_id(str(form_or_id))
+                else:
+                    to_edit = getattr(form_or_id, "user_to_edit", None)
+                    if to_edit:
+                        user_id = self._get_real_user_id(str(to_edit))
+
+                from controllers.crud import get_user, update_user
+                user = get_user(user_id)
+                if not user:
+                    return {"success": False, "message": "Member not found"}
+
+                for key in [
+                    "name", "lastname", "email", "phone",
+                    "membership_type", "status",
+                ]:
+                    if key in entity_data and entity_data.get(key) is not None:
+                        val = entity_data.get(key)
+                        if isinstance(val, str):
+                            val = val.strip()
+                        if val != "":
+                            setattr(user, key, val)
+
+                success = update_user(user)
+                if not success:
+                    return {"success": False, "message": "Failed to update member"}
+
+                self.invalidate_cache("users")
+                return {
+                    "success": True,
+                    "message": (
+                        f"Member '{getattr(user, 'name', 'record')}' "
+                        "updated successfully"
+                    ),
+                }
+
+            return {"success": False, "message": f"Unknown entity type '{entity_type}'"}
+        except Exception as e:
+            username = entity_data.get("username", entity_data.get("name", ""))
+            return self._handle_database_error(e, str(username))
+
+    def save_entity_data(
+        self,
+        entity_type: str,
+        entity_data: Dict[str, Any],
+        form_or_id=None,
+    ) -> Dict[str, Any]:
+        """
+        Backward-compatible unified method that delegates to create or update
+        based on the presence of form_or_id (or *to_edit fields).
+        """
+        entity_type_l = (entity_type or "").strip().lower()
+        # Detect update context if explicit ID or form has *to_edit
+        is_update = bool(form_or_id and (
+            isinstance(form_or_id, (str, int))
+            or hasattr(form_or_id, "trainer_to_edit")
+            or hasattr(form_or_id, "user_to_edit")
+            or hasattr(form_or_id, "admin_to_edit")
+        ))
+        if is_update:
+            return self.update_entity_data(entity_type_l, entity_data, form_or_id)
+        return self.create_entity_data(entity_type_l, entity_data)
+
+    def _get_real_user_id(self, sequential_or_real_id: str) -> Optional[str]:
+        """
+        Convert sequential user ID to real DB ID using cached data where possible.
+
+        Args:
+            sequential_or_real_id: Either sequential ID (1, 2, 3...) or real DB ID
+
+        Returns:
+            Real user ID as string, or None if not found
+        """
+        try:
+            seq = int(sequential_or_real_id)
+            if 1 <= seq <= 100000:
+                users = self._get_cached_data("users")
+                if 1 <= seq <= len(users):
+                    row = users[seq - 1]
+                    return str(row[0]) if len(row) > 0 else None
+                return None
+            return str(sequential_or_real_id)
+        except (ValueError, IndexError, Exception):
+            return str(sequential_or_real_id) if sequential_or_real_id else None
+
+    def save_trainer_data(self, trainer_data: Dict[str, Any], form_or_id=None) -> Dict[str, Any]:
+        """Compatibility wrapper for saving trainer records."""
+        is_update = bool(
+            form_or_id and (
+                isinstance(form_or_id, (str, int))
+                or getattr(form_or_id, "trainer_to_edit", None)
+            )
+        )
+        if is_update:
+            return self.update_entity_data("trainer", trainer_data, form_or_id)
+        return self.create_entity_data("trainer", trainer_data)
+
+    def save_user_data(self, user_data: Dict[str, Any], form_or_id=None) -> Dict[str, Any]:
+        """Compatibility wrapper for saving user (member) records."""
+        is_update = bool(
+            form_or_id and (
+                isinstance(form_or_id, (str, int))
+                or getattr(form_or_id, "user_to_edit", None)
+            )
+        )
+        if is_update:
+            return self.update_entity_data("user", user_data, form_or_id)
+        return self.create_entity_data("user", user_data)
