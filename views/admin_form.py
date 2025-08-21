@@ -31,6 +31,10 @@ class AdminFormView(ctk.CTkFrame):
         # Controller for trainer data
         self.controller = DashboardController()
 
+        # Provide default save behavior if none was supplied
+        if self.on_save is None:
+            self.on_save = self._default_save
+
         # Debounce system for validation (300ms delay)
         self._validation_timer = None
 
@@ -653,3 +657,13 @@ class AdminFormView(ctk.CTkFrame):
         # Password validation only matters if password is being changed
         is_valid = bool(username and username_valid and password_valid and passwords_match)
         self.form_buttons.set_save_enabled(is_valid)
+
+    def _default_save(self, data=None):
+        """Fallback Save: create or update via controller unified API."""
+        payload = data or self.get_form_data()
+        try:
+            if self.admin_to_edit:
+                return self.controller.update_entity_data("admin", payload, self)
+            return self.controller.create_entity_data("admin", payload)
+        except Exception as e:
+            return {"success": False, "message": f"Error saving administrator: {e}"}

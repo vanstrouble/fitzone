@@ -38,6 +38,10 @@ class TrainerFormView(ctk.CTkFrame):
         self.controller = DashboardController()
         self._validation_timer = None
 
+        # Default save behavior if no external callback is provided
+        if self.on_save is None:
+            self.on_save = self._default_save
+
         self._create_widgets()
 
         if self.trainer_to_edit:
@@ -566,6 +570,16 @@ class TrainerFormView(ctk.CTkFrame):
             "end_time": self.end_entry.get().strip() or None,
             "admin_username": manager_value,
         }
+
+    def _default_save(self, data=None):
+        """Fallback Save action: persist trainer choosing create/update explicitly."""
+        try:
+            payload = data or self.get_form_data()
+            if self.trainer_to_edit:
+                return self.controller.update_entity_data("trainer", payload, self)
+            return self.controller.create_entity_data("trainer", payload)
+        except Exception as e:
+            return {"success": False, "message": f"Error saving trainer: {e}"}
 
     def _load_existing_trainer_data(self):
         """Load existing trainer data into the form fields"""

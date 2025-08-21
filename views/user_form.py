@@ -34,6 +34,10 @@ class UserFormView(ctk.CTkFrame):
         self.controller = DashboardController()
         self._validation_timer = None
 
+        # Default save behavior if no external callback is provided
+        if self.on_save is None:
+            self.on_save = self._default_save
+
         self._create_widgets()
 
         if self.user_to_edit:
@@ -388,6 +392,16 @@ class UserFormView(ctk.CTkFrame):
             "membership_type": self.membership_combo.get(),
             "status": self.status_combo.get(),
         }
+
+    def _default_save(self, data=None):
+        """Fallback Save action: persist user choosing create/update explicitly."""
+        try:
+            payload = data or self.get_form_data()
+            if self.user_to_edit:
+                return self.controller.update_entity_data("user", payload, self)
+            return self.controller.create_entity_data("user", payload)
+        except Exception as e:
+            return {"success": False, "message": f"Error saving member: {e}"}
 
     def _load_existing_user_data(self):
         """Load existing user data into the form fields"""
