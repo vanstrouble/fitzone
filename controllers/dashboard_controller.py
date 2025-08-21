@@ -341,6 +341,24 @@ class DashboardController:
         """Extracts the username from a configuration section"""
         return section_name.split(" ", 1)[1]
 
+    def _is_person_email_in_use(self, email: Optional[str]) -> bool:
+        """Return True if email is already used by any User or Trainer."""
+        if not email:
+            return False
+        email_n = str(email).strip().lower()
+        try:
+            from controllers.crud import get_all_users, get_all_trainers
+            for u in get_all_users() or []:
+                if str(getattr(u, "email", "")).strip().lower() == email_n:
+                    return True
+            for t in get_all_trainers() or []:
+                if str(getattr(t, "email", "")).strip().lower() == email_n:
+                    return True
+            return False
+        except Exception:
+            # If check fails, do not block; let DB enforce uniqueness
+            return False
+
     def _handle_database_error(
         self, error: Exception, username: str = ""
     ) -> Dict[str, Any]:
@@ -357,17 +375,18 @@ class DashboardController:
         error_message = str(error)
 
         # Handle specific database constraint errors
-        if "UNIQUE constraint failed: admins.username" in error_message:
+        if "UNIQUE constraint failed: persons.email" in error_message:
             return {
                 "success": False,
-                "message": f"Username '{username}' is already taken. "
-                f"Please choose a different username.",
+                "message": "Email already in use. Use a different email.",
+            }
+        elif "UNIQUE constraint failed: admins.username" in error_message:
+            return {
+                "success": False,
+                "message": f"Username '{username}' already taken. Choose a different one.",
             }
         elif "UNIQUE constraint failed" in error_message:
-            return {
-                "success": False,
-                "message": "This information is already in use. Please check your input.",
-            }
+            return {"success": False, "message": "Data already in use. Check your input."}
         elif "NOT NULL constraint failed" in error_message:
             return {
                 "success": False,
@@ -923,6 +942,13 @@ class DashboardController:
                 return self.save_admin_data(entity_data, None)
 
             if entity_type == "trainer":
+                # Prevent duplicate emails across persons before DB insert
+                email_in = entity_data.get("email")
+                if self._is_person_email_in_use(email_in):
+                    return {
+                        "success": False,
+                        "message": "Email already in use. Use a different email.",
+                    }
                 from types import SimpleNamespace
                 from datetime import datetime
                 trainer = SimpleNamespace()
@@ -956,6 +982,13 @@ class DashboardController:
                 }
 
             if entity_type == "user":
+                # Prevent duplicate emails across persons before DB insert
+                email_in = entity_data.get("email")
+                if self._is_person_email_in_use(email_in):
+                    return {
+                        "success": False,
+                        "message": "Email already in use. Use a different email.",
+                    }
                 from types import SimpleNamespace
                 from datetime import datetime
                 user = SimpleNamespace()
