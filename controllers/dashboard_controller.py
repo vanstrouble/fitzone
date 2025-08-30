@@ -4,7 +4,13 @@ Applies the MVC pattern correctly: the controller handles business logic
 and coordination between the model (data) and the view (UI).
 """
 
-from controllers.crud import create_admin, is_admin
+from controllers.crud import (
+    create_admin,
+    is_admin,
+    delete_trainer,
+    delete_user,
+    delete_admin_by_username,
+)
 from services.data_formatter import DataFormatter
 from models.admin import Admin
 from typing import List, Dict, Any, Optional
@@ -747,110 +753,233 @@ class DashboardController:
 
     def delete_admin_with_permissions(self, current_admin, admin_id_to_delete) -> Dict[str, Any]:
         """
-        Deletes an admin if the logged-in user has sufficient permissions.
-        An admin can delete any user. A manager can only delete other managers.
-        For managers: only the admin account is deleted, the associated trainer remains.
+        Legacy method - delegates to universal delete_entity for backward compatibility
+        """
+        return self.delete_entity(current_admin, "admin", admin_id_to_delete)
+
+    def delete_entity(
+        self, current_admin, entity_type: str, entity_id_to_delete
+    ) -> Dict[str, Any]:
+        """
+        Universal delete function for all entity types (admins, trainers, users).
+        Maintains existing admin deletion hierarchy: Admin can delete anyone,
+        Manager can only delete other managers.
+        For trainers and users: Both Admin and Manager can delete them since
+        they don't access the system.
 
         Args:
             current_admin: Admin object of the currently logged-in user
-            admin_id_to_delete: Sequential ID of the admin to delete (from table display)
+            entity_type: Type of entity to delete ("admin", "trainer", "user")
+            entity_id_to_delete: Sequential ID of the entity to delete (from table display)
 
         Returns:
             Dict with success status and message
         """
         try:
-            from controllers.crud import delete_admin_by_username
+            entity_type = entity_type.lower().strip()
 
-            # Get target username from sequential ID (uses cache)
-            target_username = self.get_admin_username_from_sequential_id(admin_id_to_delete)
+            # Get entity identifier (username for admins, name for others)
+            entity_identifier = self._get_entity_identifier(entity_type, entity_id_to_delete)
 
-            if not target_username:
+            if not entity_identifier:
+                entity_name = {"admin": "Administrator", "trainer": "Trainer", "user": "Member"}
                 return {
                     "success": False,
-                    "message": "Administrator not found. Please refresh the page and try again."
+                    "message": (
+                        f"{entity_name.get(entity_type, 'Entity')} not found. "
+                        f"Please refresh the page and try again."
+                    )
                 }
 
-            # Common validation checks
-            validation_error = self._validate_admin_deletion(current_admin, target_username)
-            if validation_error:
-                return validation_error
+            # Special validation for admin deletion
+            if entity_type == "admin":
+                validation_error = self._validate_admin_deletion(current_admin, entity_identifier)
+                if validation_error:
+                    return validation_error
 
-            # Check if current user can create admin accounts (uses cache)
+            # Check permissions
             current_user_is_admin = self.can_create_admin_accounts(current_admin)
 
-            # Get target admin data from cache first, then fallback to DB if needed
-            target_admin_data = self.get_admin_data_unified(
-                admin_id_to_delete, from_cache=True, by_sequential_id=True
-            )
+            # Get target entity data for permission checking
+            target_entity_data = None
+            target_role = None
 
-            if not target_admin_data:
-                # Fallback to direct DB query if cache fails
-                from controllers.crud import get_admin_by_username
-                target_admin = get_admin_by_username(target_username)
+            if entity_type == "admin":
+                target_entity_data = self.get_admin_data_unified(
+                    entity_id_to_delete, from_cache=True, by_sequential_id=True
+                )
+                if target_entity_data:
+                    target_role = target_entity_data.get("role", "").lower().strip()
+                else:
+                    # Fallback to direct DB query
+                    from controllers.crud import get_admin_by_username
+                    target_admin = get_admin_by_username(entity_identifier)
+                    if not target_admin:
+                        return {
+                            "success": False,
+                            "message": (
+                                f"Administrator '{entity_identifier}' not found in the system."
+                            )
+                        }
+                    target_role = (target_admin.role or "").lower().strip()
 
-                if not target_admin:
-                    return {
-                        "success": False,
-                        "message": (
-                            f"Administrator '{target_username}' not found in the system. "
-                            f"They may have been already deleted."
-                        )
-                    }
-                target_role = (target_admin.role or "").lower().strip()
-            else:
-                target_role = target_admin_data.get("role", "").lower().strip()
-
-            # Permission check: Admin can delete anyone, Manager can only delete other managers
-            if not current_user_is_admin:  # Current user is Manager
+            # Permission check: Admin can delete anyone, Manager can only delete managers
+            if entity_type == "admin" and not current_user_is_admin:  # Current user is Manager
                 if target_role == "admin":
                     return {
                         "success": False,
                         "message": (
                             f"Access denied. As a Manager, you cannot delete "
-                            f"'{target_username}' who has Administrator privileges. "
+                            f"'{entity_identifier}' who has Administrator privileges. "
                             f"Only Administrators can delete other Administrators."
                         )
                     }
 
-            # Attempt deletion by username
-            success = delete_admin_by_username(target_username)
+            # For trainers and users, both Admin and Manager can delete them
+            # No additional permission checks needed since they don't access the system
+
+            # Attempt deletion
+            success = self._perform_entity_deletion(
+                entity_type, entity_identifier, entity_id_to_delete
+            )
 
             if success:
-                # Invalidate both admins and trainers cache since trainer associations might change
-                self.invalidate_cache("admins")
-                self.invalidate_cache("trainers")
+                # Invalidate relevant caches
+                self.invalidate_cache(entity_type + "s")  # "admins", "trainers", "users"
+                if entity_type == "admin":
+                    # Admin deletion might affect trainer associations
+                    self.invalidate_cache("trainers")
 
-                # Success message varies based on role
-                if target_role == "manager":
+                # Success messages
+                if entity_type == "admin":
+                    if target_role == "manager":
+                        return {
+                            "success": True,
+                            "message": (
+                                f"Manager '{entity_identifier}' has been deleted successfully. "
+                                f"Associated trainers are now available for reassignment."
+                            )
+                        }
+                    else:
+                        return {
+                            "success": True,
+                            "message": (
+                                f"Administrator '{entity_identifier}' has been "
+                                f"deleted successfully."
+                            )
+                        }
+                elif entity_type == "trainer":
                     return {
                         "success": True,
+                        "message": f"Trainer '{entity_identifier}' has been deleted successfully."
+                    }
+                elif entity_type == "user":
+                    return {
+                        "success": True,
+                        "message": f"Member '{entity_identifier}' has been deleted successfully."
+                    }
+                else:
+                    # Fallback for unknown entity types
+                    return {
+                        "success": True,
+                        "message": f"Entity '{entity_identifier}' has been deleted successfully."
+                    }
+            else:
+                # Failure messages
+                if entity_type == "admin":
+                    return {
+                        "success": False,
                         "message": (
-                            f"Manager '{target_username}' has been deleted successfully. "
-                            f"Associated trainers are now available for reassignment."
+                            f"Failed to delete '{entity_identifier}'. This may be the last "
+                            f"Administrator in the system, which cannot be removed to "
+                            f"maintain system access."
                         )
                     }
                 else:
+                    entity_name = {"trainer": "Trainer", "user": "Member"}
                     return {
-                        "success": True,
+                        "success": False,
                         "message": (
-                            f"Administrator '{target_username}' has been deleted successfully."
+                            f"Failed to delete {entity_name.get(entity_type, 'entity')} "
+                            f"'{entity_identifier}'."
                         )
                     }
-            else:
-                return {
-                    "success": False,
-                    "message": (
-                        f"Failed to delete '{target_username}'. This may be the last "
-                        f"Administrator in the system, which cannot be removed to "
-                        f"maintain system access."
-                    )
-                }
 
         except Exception as e:
+            entity_name = {"admin": "administrator", "trainer": "trainer", "user": "member"}
             return {
                 "success": False,
-                "message": f"System error occurred while deleting administrator: {str(e)}"
+                "message": (
+                    f"System error occurred while deleting "
+                    f"{entity_name.get(entity_type, 'entity')}: {str(e)}"
+                )
             }
+
+    def _get_entity_identifier(self, entity_type: str, entity_id: str) -> Optional[str]:
+        """
+        Get entity identifier (username for admins, name for trainers/users) from sequential ID
+
+        Args:
+            entity_type: Type of entity ("admin", "trainer", "user")
+            entity_id: Sequential ID from table display
+
+        Returns:
+            Entity identifier string or None if not found
+        """
+        try:
+            if entity_type == "admin":
+                return self.get_admin_username_from_sequential_id(entity_id)
+            elif entity_type == "trainer":
+                trainer_data = self._get_cached_data("trainers")
+                sequential_id_int = int(entity_id)
+                if 1 <= sequential_id_int <= len(trainer_data):
+                    trainer_row = trainer_data[sequential_id_int - 1]
+                    # Return name (typically in second column)
+                    return trainer_row[1] if len(trainer_row) > 1 else None
+            elif entity_type == "user":
+                user_data = self._get_cached_data("users")
+                sequential_id_int = int(entity_id)
+                if 1 <= sequential_id_int <= len(user_data):
+                    user_row = user_data[sequential_id_int - 1]
+                    # Return name (typically in second column)
+                    return user_row[1] if len(user_row) > 1 else None
+            return None
+        except (ValueError, IndexError, Exception):
+            return None
+
+    def _perform_entity_deletion(
+        self, entity_type: str, entity_identifier: str, entity_id: str
+    ) -> bool:
+        """
+        Perform the actual deletion of an entity
+
+        Args:
+            entity_type: Type of entity ("admin", "trainer", "user")
+            entity_identifier: Entity identifier (username for admins, name for others)
+            entity_id: Sequential ID for conversion to real ID if needed
+
+        Returns:
+            True if deletion was successful, False otherwise
+        """
+        try:
+            if entity_type == "admin":
+                return delete_admin_by_username(entity_identifier)
+            elif entity_type == "trainer":
+                # Convert sequential ID to real trainer ID
+                real_trainer_id = self._get_real_trainer_id(entity_id)
+                if real_trainer_id:
+                    return delete_trainer(real_trainer_id)
+                return False
+            elif entity_type == "user":
+                # Convert sequential ID to real user ID
+                real_user_id = self._get_real_user_id(entity_id)
+                if real_user_id:
+                    return delete_user(real_user_id)
+                return False
+            return False
+        except Exception as e:
+            print(f"Error deleting {entity_type}: {e}")
+            return False
 
     def _get_real_trainer_id(self, sequential_or_real_id: str) -> Optional[str]:
         """
