@@ -137,6 +137,7 @@ class DashboardFrame(ctk.CTkFrame):
             controller=self.controller,
             crud_callbacks={
                 "on_add": lambda: self._show_trainer_form(),
+                "on_delete": self._handle_trainer_delete,
             },
         )
         self.trainer_view.pack(fill="both", expand=True, padx=10, pady=10)
@@ -158,6 +159,7 @@ class DashboardFrame(ctk.CTkFrame):
             controller=self.controller,
             crud_callbacks={
                 "on_add": lambda: self._show_user_form(),
+                "on_delete": self._handle_user_delete,
             },
         )
         self.user_view.pack(fill="both", expand=True, padx=10, pady=10)
@@ -246,18 +248,15 @@ class DashboardFrame(ctk.CTkFrame):
 
     def _handle_trainer_save(self, trainer_data):
         try:
-            # Prefer controller.save_trainer_data if implemented
-            if hasattr(self.controller, 'save_trainer_data'):
-                result = self.controller.save_trainer_data(trainer_data, self.current_trainer_form)
-            elif hasattr(self.controller, 'create_trainer'):
-                result = self.controller.create_trainer(trainer_data)
-            else:
-                raise RuntimeError('Controller does not implement trainer save')
-
+            result = self.controller.save_trainer_data(
+                trainer_data, self.current_trainer_form
+            )
             if result.get("success"):
                 self._show_trainers_table()
             else:
-                self._show_error_dialog("Save Error", result.get('message', 'Unknown error'))
+                self._show_error_dialog(
+                    "Save Error", result.get("message", "Unknown error")
+                )
         except Exception as e:
             self._show_error_dialog("Save Error", f"Error saving trainer: {e}")
 
@@ -280,17 +279,15 @@ class DashboardFrame(ctk.CTkFrame):
 
     def _handle_user_save(self, user_data):
         try:
-            if hasattr(self.controller, 'save_user_data'):
-                result = self.controller.save_user_data(user_data, self.current_user_form)
-            elif hasattr(self.controller, 'create_user'):
-                result = self.controller.create_user(user_data)
-            else:
-                raise RuntimeError('Controller does not implement user save')
-
+            result = self.controller.save_user_data(
+                user_data, self.current_user_form
+            )
             if result.get("success"):
                 self._show_users_table()
             else:
-                self._show_error_dialog("Save Error", result.get('message', 'Unknown error'))
+                self._show_error_dialog(
+                    "Save Error", result.get("message", "Unknown error")
+                )
         except Exception as e:
             self._show_error_dialog("Save Error", f"Error saving user: {e}")
 
@@ -327,10 +324,75 @@ class DashboardFrame(ctk.CTkFrame):
         else:
             self._show_error_dialog("Delete Error", result["message"])
 
-    def _show_error_dialog(self, title: str, message: str):
-        """Show error dialog to user"""
-        import tkinter.messagebox as messagebox
-        messagebox.showerror(title, message)
+    def _handle_trainer_delete(self):
+        """Handle trainer deletion through controller with confirmation."""
+        selected_id = self.trainer_view.table.get_selected_id()
+        if not selected_id:
+            self._show_error_dialog("Delete Error", "No trainer selected.")
+            return
+
+        name = self._get_trainer_name_from_sequential_id(selected_id) or "trainer"
+
+        if not self._show_delete_confirmation_generic("trainer", name):
+            return
+
+        result = self.controller.delete_entity(
+            self.current_admin, "trainer", selected_id
+        )
+        if result.get("success"):
+            self._show_trainers_table()
+        else:
+            self._show_error_dialog(
+                "Delete Error",
+                result.get("message", "Failed to delete trainer"),
+            )
+
+    def _handle_user_delete(self):
+        """Handle user deletion through controller with confirmation."""
+        selected_id = self.user_view.table.get_selected_id()
+        if not selected_id:
+            self._show_error_dialog("Delete Error", "No member selected.")
+            return
+
+        name = self._get_user_name_from_sequential_id(selected_id) or "member"
+
+        if not self._show_delete_confirmation_generic("member", name):
+            return
+
+        result = self.controller.delete_entity(
+            self.current_admin, "user", selected_id
+        )
+        if result.get("success"):
+            self._show_users_table()
+        else:
+            self._show_error_dialog(
+                "Delete Error",
+                result.get("message", "Failed to delete member"),
+            )
+
+    def _get_trainer_name_from_sequential_id(self, sequential_id: str):
+        """Resolve trainer name from table sequential ID using controller data."""
+        try:
+            idx = int(sequential_id)
+            trainers = self.controller.get_trainer_data() or []
+            if 1 <= idx <= len(trainers):
+                row = trainers[idx - 1]
+                return row[1] if len(row) > 1 else None
+        except Exception:
+            return None
+        return None
+
+    def _get_user_name_from_sequential_id(self, sequential_id: str):
+        """Resolve user name from table sequential ID using controller data."""
+        try:
+            idx = int(sequential_id)
+            users = self.controller.get_user_data() or []
+            if 1 <= idx <= len(users):
+                row = users[idx - 1]
+                return row[1] if len(row) > 1 else None
+        except Exception:
+            return None
+        return None
 
     def _show_delete_confirmation(self, username: str) -> bool:
         """Show confirmation dialog for admin deletion"""
@@ -342,3 +404,20 @@ class DashboardFrame(ctk.CTkFrame):
             f"This action cannot be undone.",
             icon="warning"
         )
+
+    def _show_delete_confirmation_generic(self, entity_label: str, name: str) -> bool:
+        """Generic confirmation dialog for entity deletion."""
+        import tkinter.messagebox as messagebox
+        return messagebox.askyesno(
+            "Confirm Deletion",
+            (
+                f"Are you sure you want to delete the {entity_label} '{name}'?\n\n"
+                f"This action cannot be undone."
+            ),
+            icon="warning",
+        )
+
+    def _show_error_dialog(self, title: str, message: str):
+        """Show a standard error dialog."""
+        import tkinter.messagebox as messagebox
+        messagebox.showerror(title, message)
