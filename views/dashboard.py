@@ -37,9 +37,6 @@ class DashboardFrame(ctk.CTkFrame):
         # Create Content Frame
         self._create_content_frame()
 
-        # Setup global keyboard shortcuts
-        self._setup_keyboard_shortcuts()
-
         # Show default content
         self._show_default_content()
 
@@ -67,12 +64,20 @@ class DashboardFrame(ctk.CTkFrame):
 
     def _show_welcome_screen(self):
         """Show elegant welcome screen as the initial view"""
-        for widget in self.content_container.winfo_children():
-            widget.destroy()
+        # Check if content_container still exists and is valid
+        if not hasattr(self, 'content_container') or not self.content_container.winfo_exists():
+            return
 
-        # Create welcome view
-        welcome_view = WelcomeView(self.content_container, self.current_admin)
-        welcome_view.pack(fill="both", expand=True, padx=10, pady=10)
+        try:
+            for widget in self.content_container.winfo_children():
+                widget.destroy()
+
+            # Create welcome view
+            welcome_view = WelcomeView(self.content_container, self.current_admin)
+            welcome_view.pack(fill="both", expand=True, padx=10, pady=10)
+        except Exception:
+            # Silently handle any widget-related errors
+            pass
 
     def show_content(self, section_name):
         if self.controller.should_show_configuration(section_name):
@@ -424,26 +429,3 @@ class DashboardFrame(ctk.CTkFrame):
         """Show a standard error dialog."""
         import tkinter.messagebox as messagebox
         messagebox.showerror(title, message)
-
-    def _setup_keyboard_shortcuts(self):
-        """Bind global keyboard shortcuts independent of the active view."""
-        # Timestamp-based double-press detection
-        self._last_escape_time = 0.0
-        try:
-            toplevel = self.winfo_toplevel()
-            # Bind only on key release to count presses once
-            toplevel.bind_all("<KeyRelease-Escape>", self._on_escape, add="+")
-        except Exception:
-            pass
-
-    def _on_escape(self, event=None):
-        """Trigger welcome screen on double ESC release within a short interval."""
-        import time
-        now = time.time()
-        last = getattr(self, "_last_escape_time", 0.0)
-        if now - last <= 0.5:
-            # Double press detected
-            self._last_escape_time = 0.0
-            self._show_welcome_screen()
-            return
-        self._last_escape_time = now
