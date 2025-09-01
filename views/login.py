@@ -5,45 +5,96 @@ from views.colors import COLORS
 
 class LoginFrame(ctk.CTkFrame):
     def __init__(self, master, on_login_success):
-        super().__init__(master)
+        super().__init__(master, fg_color=COLORS.get("background", "#f0f2f5"))
         self.on_login_success = on_login_success
 
         # Focus state tracking for visual feedback
         self._username_focused = False
         self._password_focused = False
 
-        # App icon/logo
-        app_logo = ctk.CTkLabel(
+        # Main container with primary color background
+        self.configure(fg_color=COLORS["primary"][0])
+
+        # Header section - minimal outside the form
+        header_frame = ctk.CTkFrame(self, fg_color="transparent", height=40)
+        header_frame.pack(fill="x", pady=(20, 10))
+
+        # Login form container with gym branding inside
+        self.form_container = ctk.CTkFrame(
             self,
+            width=400,
+            height=450,
+            corner_radius=16,
+            fg_color=COLORS["neutral_fg"],
+            border_width=2,
+            border_color=COLORS["accent"][0],
+        )
+        self.form_container.pack(pady=(10, 20), padx=20, expand=True)
+        self.form_container.pack_propagate(False)
+
+        # App branding inside the form container
+        branding_frame = ctk.CTkFrame(
+            self.form_container, fg_color="transparent", height=90
+        )
+        branding_frame.pack(fill="x", pady=(20, 15))
+
+        # App icon/logo inside form
+        app_logo = ctk.CTkLabel(
+            branding_frame,
             text="🦾",
             font=ctk.CTkFont(size=48),
         )
-        app_logo.pack(pady=(30, 10))
+        app_logo.pack(pady=(0, 5))
+
+        # App name/brand inside form
+        brand_label = ctk.CTkLabel(
+            branding_frame,
+            text="FitZone",
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color=COLORS["primary"][0],
+        )
+        brand_label.pack()
+
+        # Form header
+        form_header = ctk.CTkFrame(
+            self.form_container, fg_color="transparent", height=60
+        )
+        form_header.pack(fill="x", pady=(0, 10))
 
         login_title = ctk.CTkLabel(
-            self,
+            form_header,
             text="Welcome Back",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=COLORS["text_primary"],
         )
-        login_title.pack(pady=(0, 5))
+        login_title.pack(pady=(0, 3))
 
         login_subtitle = ctk.CTkLabel(
-            self,
+            form_header,
             text="Please enter your credentials",
-            font=ctk.CTkFont(size=14),
+            font=ctk.CTkFont(size=13),
             text_color=COLORS["text_secondary"],
         )
-        login_subtitle.pack(pady=(0, 25))
+        login_subtitle.pack()
+
+        # Form fields container
+        fields_frame = ctk.CTkFrame(self.form_container, fg_color="transparent")
+        fields_frame.pack(fill="both", expand=True, padx=30, pady=(5, 15))
 
         self.username_entry = ctk.CTkEntry(
-            self,
-            width=300,
-            height=40,
-            placeholder_text="Username",
-            border_width=1,
+            fields_frame,
+            width=320,
+            height=45,
+            placeholder_text="Email or Username",
+            border_width=2,
             corner_radius=8,
+            font=ctk.CTkFont(size=14),
+            border_color=COLORS["text_secondary"],
+            fg_color=COLORS["neutral_bg"],
+            text_color=COLORS["text_primary"],
+            placeholder_text_color=COLORS["text_secondary"],
         )
-        self.username_entry.pack(pady=(0, 15), padx=40)
+        self.username_entry.pack(pady=(10, 0))
 
         # Bind key events for username field
         self.username_entry.bind("<Return>", self.on_return_key)
@@ -54,15 +105,20 @@ class LoginFrame(ctk.CTkFrame):
         self._bind_username_shortcuts()
 
         self.password_entry = ctk.CTkEntry(
-            self,
-            width=300,
-            height=40,
+            fields_frame,
+            width=320,
+            height=45,
             placeholder_text="Password",
             show="•",
-            border_width=1,
+            border_width=2,
             corner_radius=8,
+            font=ctk.CTkFont(size=14),
+            border_color=COLORS["text_secondary"],
+            fg_color=COLORS["neutral_bg"],
+            text_color=COLORS["text_primary"],
+            placeholder_text_color=COLORS["text_secondary"],
         )
-        self.password_entry.pack(pady=(0, 25))
+        self.password_entry.pack(pady=(12, 0))
 
         # Bind key events for password field
         self.password_entry.bind("<Return>", self.on_return_key)
@@ -73,25 +129,42 @@ class LoginFrame(ctk.CTkFrame):
         self._bind_password_shortcuts()
 
         self.error_label = ctk.CTkLabel(
-            self,
+            fields_frame,
             text="",
             text_color=COLORS["danger"],
             font=ctk.CTkFont(size=12, weight="bold"),
         )
-        self.error_label.pack(pady=(0, 5))
+        self.error_label.pack(pady=(8, 0))
 
         login_button = ctk.CTkButton(
-            self,
+            fields_frame,
             text="Sign In",
-            width=300,
-            height=40,
+            width=320,
+            height=45,
             corner_radius=8,
-            font=ctk.CTkFont(size=15, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             hover_color=COLORS["primary"][1],
             fg_color=COLORS["primary"][0],
+            text_color="white",
             command=self.validate_login,
         )
-        login_button.pack(pady=(0, 30))
+        login_button.pack(pady=(15, 10))
+
+        # Additional options
+        options_frame = ctk.CTkFrame(fields_frame, fg_color="transparent")
+        options_frame.pack(fill="x", pady=(5, 0))
+
+        # Footer with additional branding
+        footer_frame = ctk.CTkFrame(self, fg_color="transparent", height=60)
+        footer_frame.pack(fill="x", pady=(0, 20))
+
+        footer_text = ctk.CTkLabel(
+            footer_frame,
+            text="Secure gym management system",
+            font=ctk.CTkFont(size=12),
+            text_color=COLORS["text_secondary"],
+        )
+        footer_text.pack()
 
     def _bind_username_shortcuts(self):
         """Bind advanced keyboard shortcuts for username field"""
@@ -102,14 +175,19 @@ class LoginFrame(ctk.CTkFrame):
 
         if is_mac:
             # macOS shortcuts
-            self.username_entry.bind("<Command-BackSpace>", self._delete_username_to_beginning)
-            self.username_entry.bind("<Option-BackSpace>", self._delete_username_word_backward)
+            self.username_entry.bind(
+                "<Command-BackSpace>", self._delete_username_to_beginning
+            )
+            self.username_entry.bind(
+                "<Option-BackSpace>", self._delete_username_word_backward
+            )
         else:
             # Windows/Linux shortcuts
-            self.username_entry.bind("<Control-BackSpace>", self._delete_username_word_backward)
             self.username_entry.bind(
-                "<Control-Shift-BackSpace>",
-                self._delete_username_to_beginning
+                "<Control-BackSpace>", self._delete_username_word_backward
+            )
+            self.username_entry.bind(
+                "<Control-Shift-BackSpace>", self._delete_username_to_beginning
             )
 
         # Universal shortcuts
@@ -127,12 +205,13 @@ class LoginFrame(ctk.CTkFrame):
 
         if is_mac:
             # macOS shortcuts - only Cmd + Backspace for security
-            self.password_entry.bind("<Command-BackSpace>", self._delete_password_to_beginning)
+            self.password_entry.bind(
+                "<Command-BackSpace>", self._delete_password_to_beginning
+            )
         else:
             # Windows/Linux shortcuts - only Ctrl + Shift + Backspace for security
             self.password_entry.bind(
-                "<Control-Shift-BackSpace>",
-                self._delete_password_to_beginning
+                "<Control-Shift-BackSpace>", self._delete_password_to_beginning
             )
 
         # Universal shortcuts
@@ -172,14 +251,12 @@ class LoginFrame(ctk.CTkFrame):
         if self._username_focused:
             # Focused state - primary color border
             self.username_entry.configure(
-                border_color=COLORS["primary"][0],
-                border_width=1
+                border_color=COLORS["primary"][0], border_width=1
             )
         else:
             # Normal state - default border
             self.username_entry.configure(
-                border_color=("gray60", "gray40"),
-                border_width=1
+                border_color=("gray60", "gray40"), border_width=1
             )
 
     def _update_password_style(self):
@@ -195,14 +272,12 @@ class LoginFrame(ctk.CTkFrame):
         if self._password_focused:
             # Focused state - primary color border
             self.password_entry.configure(
-                border_color=COLORS["primary"][0],
-                border_width=1
+                border_color=COLORS["primary"][0], border_width=1
             )
         else:
             # Normal state - default border
             self.password_entry.configure(
-                border_color=("gray60", "gray40"),
-                border_width=1
+                border_color=("gray60", "gray40"), border_width=1
             )
 
     # Advanced text editing methods for username
@@ -301,10 +376,8 @@ class LoginFrame(ctk.CTkFrame):
             self.error_label.configure(text="Invalid credentials. Please try again.")
             # Make border thicker and red for error state
             self.username_entry.configure(
-                border_color=COLORS["danger"][0],
-                border_width=2
+                border_color=COLORS["danger"][0], border_width=2
             )
             self.password_entry.configure(
-                border_color=COLORS["danger"][0],
-                border_width=2
+                border_color=COLORS["danger"][0], border_width=2
             )
