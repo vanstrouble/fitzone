@@ -84,21 +84,26 @@ class App(ctk.CTk):
         self.header_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0)
         self.header_frame.grid_columnconfigure(0, weight=1)
 
-        title_label = ctk.CTkLabel(
+        self.title_label = ctk.CTkLabel(
             self.header_frame,
             text="FITZONE",
             font=ctk.CTkFont(size=28, weight="bold"),
             text_color="white",
         )
-        title_label.pack(pady=(10, 5))
+        self.title_label.pack(pady=(10, 5))
 
-        subtitle_label = ctk.CTkLabel(
+        self.subtitle_label = ctk.CTkLabel(
             self.header_frame,
             text="Gym Management System",
             font=ctk.CTkFont(size=14),
             text_color="white",
         )
-        subtitle_label.pack(pady=(0, 10))
+        self.subtitle_label.pack(pady=(0, 10))
+
+    def refresh_header_colors(self):
+        """Refresh header colors when palette changes"""
+        if hasattr(self, 'header_frame'):
+            self.header_frame.configure(fg_color=COLORS["primary"][0])
 
     def _create_main_frame(self):
         """Create the main content frame"""
