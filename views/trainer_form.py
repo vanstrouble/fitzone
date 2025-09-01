@@ -189,6 +189,33 @@ class TrainerFormView(ctk.CTkFrame):
             anchor="w",
         )
 
+        # Age field
+        self.age_label = ctk.CTkLabel(
+            form_frame,
+            text="Age (Optional):",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w",
+        )
+        self.age_label.pack(anchor="w", pady=(0, 5))
+
+        self.age_entry = ctk.CTkEntry(
+            form_frame,
+            height=40,
+            placeholder_text="Enter age (e.g., 25)",
+            corner_radius=8,
+        )
+        self.age_entry.pack(fill="x", pady=(0, 15))
+        self.age_entry.bind("<KeyRelease>", self._on_field_change)
+
+        # Error message for age validation (initially hidden)
+        self.age_error_label = ctk.CTkLabel(
+            form_frame,
+            text="",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=COLORS["danger"][0],
+            anchor="w",
+        )
+
         # Specialty field
         self.specialty_label = ctk.CTkLabel(
             form_frame,
@@ -345,6 +372,7 @@ class TrainerFormView(ctk.CTkFrame):
         lastname = self.lastname_entry.get().strip()
         email = self.email_entry.get().strip()
         phone = self.phone_entry.get().strip()
+        age_str = self.age_entry.get().strip()
         specialty = self.specialty_entry.get().strip()
         start_time = self.start_entry.get().strip()
         end_time = self.end_entry.get().strip()
@@ -362,6 +390,9 @@ class TrainerFormView(ctk.CTkFrame):
 
         # Validate phone (optional)
         phone_valid, phone_error = self._validate_phone(phone)
+
+        # Validate age (optional)
+        age_valid, age_error = self._validate_age(age_str)
 
         # Validate specialty
         specialty_valid, specialty_error = self._validate_specialty(specialty)
@@ -405,6 +436,15 @@ class TrainerFormView(ctk.CTkFrame):
             self.phone_error_label.pack_forget()
             self.phone_entry.configure(border_color=("gray60", "gray40"))
 
+        # Show/hide age error message
+        if age_str and not age_valid:
+            self.age_error_label.configure(text=age_error)
+            self.age_error_label.pack(anchor="w", pady=(0, 5), after=self.age_label)
+            self.age_entry.configure(border_color=COLORS["danger"][0])
+        else:
+            self.age_error_label.pack_forget()
+            self.age_entry.configure(border_color=("gray60", "gray40"))
+
         # Show/hide specialty error message
         if specialty and not specialty_valid:
             self.specialty_error_label.configure(text=specialty_error)
@@ -433,7 +473,7 @@ class TrainerFormView(ctk.CTkFrame):
         is_valid = bool(
             name and lastname and email and specialty and
             name_valid and lastname_valid and email_valid and specialty_valid and
-            phone_valid and time_valid
+            phone_valid and time_valid and age_valid
         )
         self.form_buttons.set_save_enabled(is_valid)
 
@@ -498,6 +538,18 @@ class TrainerFormView(ctk.CTkFrame):
 
         return True, ""
 
+    def _validate_age(self, age_str):
+        """Validate age is an integer between 0 and 120 (optional)."""
+        if not age_str:
+            return True, ""
+        try:
+            age = int(age_str)
+            if age < 0 or age > 120:
+                return False, "Age must be between 0 and 120"
+            return True, ""
+        except ValueError:
+            return False, "Age must be a whole number"
+
     def _validate_specialty(self, specialty):
         """Validate specialty format and requirements"""
         if not specialty:
@@ -559,11 +611,21 @@ class TrainerFormView(ctk.CTkFrame):
         if manager_value == "None":
             manager_value = None
 
+        # Parse age
+        age_val = None
+        try:
+            age_txt = self.age_entry.get().strip()
+            if age_txt != "":
+                age_val = int(age_txt)
+        except Exception:
+            age_val = None
+
         return {
             "name": self.name_entry.get().strip(),
             "lastname": self.lastname_entry.get().strip(),
             "email": self.email_entry.get().strip(),
             "phone": self.phone_entry.get().strip() or None,
+            "age": age_val,
             "specialty": self.specialty_entry.get().strip(),
             "start_time": self.start_entry.get().strip() or None,
             "end_time": self.end_entry.get().strip() or None,

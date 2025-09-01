@@ -1093,9 +1093,14 @@ class DashboardController:
                 trainer = SimpleNamespace()
                 for key in [
                     "name", "lastname", "email", "phone",
-                    "specialty", "start_time", "end_time",
+                    "age", "specialty", "start_time", "end_time",
                 ]:
                     val = entity_data.get(key)
+                    if key == "age" and val not in (None, ""):
+                        try:
+                            val = int(val)
+                        except Exception:
+                            val = None
                     if isinstance(val, str):
                         val = val.strip()
                     if val not in (None, ""):
@@ -1133,11 +1138,16 @@ class DashboardController:
                 user = SimpleNamespace()
                 for key in [
                     "name", "lastname", "email", "phone",
-                    "membership_type", "status",
+                    "age", "membership_type", "status",
                 ]:
                     val = entity_data.get(key)
                     if key == "membership_type" and (val is None or val == ""):
                         val = "Basic"
+                    if key == "age" and val not in (None, ""):
+                        try:
+                            val = int(val)
+                        except Exception:
+                            val = None
                     if isinstance(val, str):
                         val = val.strip()
                     if val not in (None, ""):
@@ -1161,6 +1171,7 @@ class DashboardController:
                     "message": f"Member '{getattr(user, 'name', '')}' created successfully",
                 }
 
+            # Fallback for unknown entity types to satisfy return type
             return {"success": False, "message": f"Unknown entity type '{entity_type}'"}
         except Exception as e:
             username = entity_data.get("username", entity_data.get("name", ""))
@@ -1207,10 +1218,15 @@ class DashboardController:
 
                 for key in [
                     "name", "lastname", "email", "phone",
-                    "specialty", "start_time", "end_time",
+                    "age", "specialty", "start_time", "end_time",
                 ]:
                     if key in entity_data and entity_data.get(key) is not None:
                         val = entity_data.get(key)
+                        if key == "age" and val not in (None, ""):
+                            try:
+                                val = int(val)
+                            except Exception:
+                                val = None
                         if isinstance(val, str):
                             val = val.strip()
                         if val != "":
@@ -1249,10 +1265,15 @@ class DashboardController:
 
                 for key in [
                     "name", "lastname", "email", "phone",
-                    "membership_type", "status",
+                    "age", "membership_type", "status",
                 ]:
                     if key in entity_data and entity_data.get(key) is not None:
                         val = entity_data.get(key)
+                        if key == "age" and val not in (None, ""):
+                            try:
+                                val = int(val)
+                            except Exception:
+                                val = None
                         if isinstance(val, str):
                             val = val.strip()
                         if val != "":
