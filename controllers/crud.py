@@ -2,7 +2,7 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from prettytable import PrettyTable
 from controllers.database import SessionLocal
-from models.models import DEFAULT_ADMIN, UserDB, TrainerDB, AdminDB, AdminRoles
+from models.models import DEFAULT_ADMIN, UserDB, TrainerDB, AdminDB, AdminRoles, PersonDB
 from models.admin import Admin
 from controllers.converters import (
     admin_to_db,
@@ -114,7 +114,14 @@ def delete_user(unique_id):
             logger.warning(f"User with ID {unique_id} not found")
             return False
 
+        # Delete child row first, then the base person row
+        person_id = user_db.id
         session.delete(user_db)
+
+        person_db = session.query(PersonDB).filter(PersonDB.id == person_id).first()
+        if person_db:
+            session.delete(person_db)
+
         session.commit()
         return True
     except SQLAlchemyError as e:
@@ -286,7 +293,14 @@ def delete_trainer(unique_id):
             logger.warning(f"Trainer with ID {unique_id} not found")
             return False
 
+        # Delete child row first, then the base person row
+        person_id = trainer_db.id
         session.delete(trainer_db)
+
+        person_db = session.query(PersonDB).filter(PersonDB.id == person_id).first()
+        if person_db:
+            session.delete(person_db)
+
         session.commit()
         return True
     except SQLAlchemyError as e:

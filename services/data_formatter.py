@@ -179,6 +179,28 @@ class DataFormatter:
             print(f"Error formatting user data: {e}")
             return []
 
+    def get_formatted_user_data_with_real_ids(self):
+        """Return user rows with real DB IDs in the first column.
+        Ordering matches the underlying CRUD get_all_users iteration,
+        which is the same source typically used by the standard user table.
+        Each row shape: [real_id, Name, Membership, Status, Join Date]
+        """
+        try:
+            from controllers.crud import get_all_users
+            users = get_all_users() or []
+            rows = []
+            for u in users:
+                real_id = str(getattr(u, "unique_id", getattr(u, "id", "")))
+                name = f"{getattr(u, 'name', '')} {getattr(u, 'lastname', '')}".strip()
+                membership = getattr(u, "membership_type", "")
+                status = getattr(u, "status", "")
+                join_date = getattr(u, "created_at", "")
+                rows.append([real_id, name, membership, status, join_date])
+            return rows
+        except Exception:
+            # Fallback to basic user data
+            return self.get_formatted_user_data() or []
+
     def _format_date(self, date_value):
         """Método utilitario para formatear fechas de manera consistente"""
         if not hasattr(date_value, '__str__') or not date_value:

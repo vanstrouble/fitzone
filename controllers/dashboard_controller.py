@@ -147,6 +147,15 @@ class DashboardController:
                 self._data_cache[table_name] = (
                     self.data_formatter.get_formatted_user_data()
                 )
+            elif table_name == "users_with_real_ids":
+                # Real user IDs aligned with the standard users table ordering
+                try:
+                    self._data_cache[table_name] = (
+                        self.data_formatter.get_formatted_user_data_with_real_ids()
+                    )
+                except Exception:
+                    # Fallback to basic user data if extended method is unavailable
+                    self._data_cache[table_name] = self._data_cache.get("users", [])
             elif table_name == "available trainers":
                 # Handle available trainers for search (4 columns without Manager column)
                 self._data_cache[table_name] = self.get_available_trainers_for_form()
@@ -177,7 +186,8 @@ class DashboardController:
         # Handle dependent cache invalidations
         dependencies = {
             "admins": ["admins_extended"],
-            "trainers": ["trainers_with_real_ids"]
+            "trainers": ["trainers_with_real_ids"],
+            "users": ["users_with_real_ids"],
         }
 
         for dependent in dependencies.get(table_name, []):
@@ -1301,9 +1311,9 @@ class DashboardController:
         try:
             seq = int(sequential_or_real_id)
             if 1 <= seq <= 100000:
-                users = self._get_cached_data("users")
-                if 1 <= seq <= len(users):
-                    row = users[seq - 1]
+                users_real = self._get_cached_data("users_with_real_ids")
+                if 1 <= seq <= len(users_real):
+                    row = users_real[seq - 1]
                     return str(row[0]) if len(row) > 0 else None
                 return None
             return str(sequential_or_real_id)

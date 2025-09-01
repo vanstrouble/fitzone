@@ -2,7 +2,6 @@ import customtkinter as ctk
 from views.colors import COLORS
 from controllers.dashboard_controller import DashboardController
 from views.components.form_buttons import FormButtons
-from views.components.table_with_header import TableWithHeaderView
 
 
 class TrainerFormView(ctk.CTkFrame):
