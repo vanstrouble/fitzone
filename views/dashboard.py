@@ -145,6 +145,7 @@ class DashboardFrame(ctk.CTkFrame):
             controller=self.controller,
             crud_callbacks={
                 "on_add": lambda: self._show_trainer_form(),
+                "on_update": self._handle_trainer_update,
                 "on_delete": self._handle_trainer_delete,
             },
         )
@@ -167,6 +168,7 @@ class DashboardFrame(ctk.CTkFrame):
             controller=self.controller,
             crud_callbacks={
                 "on_add": lambda: self._show_user_form(),
+                "on_update": self._handle_user_update,
                 "on_delete": self._handle_user_delete,
             },
         )
@@ -177,7 +179,7 @@ class DashboardFrame(ctk.CTkFrame):
             widget.destroy()
 
         if username == self.current_admin.username:
-            # Crear UserConfigFrame directamente sin ViewWithHeaderView
+            # Create UserConfigFrame directly
             admin_config = UserConfigFrame(
                 self.content_container,
                 current_admin=self.current_admin,
@@ -186,7 +188,7 @@ class DashboardFrame(ctk.CTkFrame):
             )
             admin_config.pack(fill="both", expand=True, padx=10, pady=10)
         else:
-            # Solo usar ViewWithHeaderView para casos de fallback
+            # Fallback for other users
             config_view = ViewWithHeaderView(
                 self.content_container, title="Account Information"
             )
@@ -216,7 +218,7 @@ class DashboardFrame(ctk.CTkFrame):
             on_save=self._handle_admin_save,
             on_cancel=self._handle_admin_cancel,
             admin_to_edit=admin_to_edit,
-            current_admin=self.current_admin,  # ✅ Pass current admin for security
+            current_admin=self.current_admin,
         )
         self.current_admin_form.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -271,6 +273,12 @@ class DashboardFrame(ctk.CTkFrame):
     def _handle_trainer_cancel(self):
         self._show_trainers_table()
 
+    def _handle_trainer_update(self):
+        """Handle trainer update by getting selected ID and showing form with data"""
+        selected_id = self.trainer_view.table.get_selected_id()
+        if selected_id:
+            self._show_trainer_form(trainer_to_edit=selected_id)
+
     # User form handlers
     def _show_user_form(self, user_to_edit=None):
         for widget in self.content_container.winfo_children():
@@ -302,6 +310,12 @@ class DashboardFrame(ctk.CTkFrame):
     def _handle_user_cancel(self):
         self._show_users_table()
 
+    def _handle_user_update(self):
+        """Handle user update by getting selected ID and showing form with data"""
+        selected_id = self.user_view.table.get_selected_id()
+        if selected_id:
+            self._show_user_form(user_to_edit=selected_id)
+
     def _handle_admin_update(self):
         """Handle admin update by getting selected ID and showing form with data"""
         selected_id = self.admin_view.table.get_selected_id()
@@ -309,103 +323,81 @@ class DashboardFrame(ctk.CTkFrame):
             self._show_admin_form(admin_to_edit=selected_id)
 
     def _handle_admin_delete(self):
-        """Handle admin deletion through controller - simple like other handlers"""
+        """Handle admin deletion through controller"""
         selected_id = self.admin_view.table.get_selected_id()
         if not selected_id:
             self._show_error_dialog("Delete Error", "No administrator selected.")
             return
 
-        # Get username for confirmation dialog
         username = self.controller.get_admin_username_from_sequential_id(selected_id)
         if not username:
             self._show_error_dialog("Delete Error", "Administrator not found.")
             return
 
-        # Show confirmation dialog
         if not self._show_delete_confirmation(username):
-            return  # User cancelled
+            return
 
-        # Execute deletion
-        result = self.controller.delete_admin_with_permissions(self.current_admin, selected_id)
+        result = self.controller.delete_entity(self.current_admin, "admin", selected_id)
         if result["success"]:
             self._show_admins_table()
         else:
             self._show_error_dialog("Delete Error", result["message"])
 
     def _handle_trainer_delete(self):
-        """Handle trainer deletion through controller with confirmation."""
+        """Handle trainer deletion through controller"""
         selected_id = self.trainer_view.table.get_selected_id()
         if not selected_id:
             self._show_error_dialog("Delete Error", "No trainer selected.")
             return
 
-        name = self._get_trainer_name_from_sequential_id(selected_id) or "trainer"
-
+        name = self._get_entity_name(selected_id, "trainer")
         if not self._show_delete_confirmation_generic("trainer", name):
             return
 
-        result = self.controller.delete_entity(
-            self.current_admin, "trainer", selected_id
-        )
-        if result.get("success"):
+        result = self.controller.delete_entity(self.current_admin, "trainer", selected_id)
+        if result["success"]:
             self._show_trainers_table()
         else:
-            self._show_error_dialog(
-                "Delete Error",
-                result.get("message", "Failed to delete trainer"),
-            )
+            self._show_error_dialog("Delete Error", result["message"])
 
     def _handle_user_delete(self):
-        """Handle user deletion through controller with confirmation."""
+        """Handle user deletion through controller"""
         selected_id = self.user_view.table.get_selected_id()
         if not selected_id:
             self._show_error_dialog("Delete Error", "No member selected.")
             return
 
-        name = self._get_user_name_from_sequential_id(selected_id) or "member"
-
+        name = self._get_entity_name(selected_id, "user")
         if not self._show_delete_confirmation_generic("member", name):
             return
 
-        result = self.controller.delete_entity(
-            self.current_admin, "user", selected_id
-        )
-        if result.get("success"):
+        result = self.controller.delete_entity(self.current_admin, "user", selected_id)
+        if result["success"]:
             self._show_users_table()
         else:
-            self._show_error_dialog(
-                "Delete Error",
-                result.get("message", "Failed to delete member"),
-            )
+            self._show_error_dialog("Delete Error", result["message"])
 
-    def _get_trainer_name_from_sequential_id(self, sequential_id: str):
-        """Resolve trainer name from table sequential ID using controller data."""
+    def _get_entity_name(self, sequential_id: str, entity_type: str) -> str:
+        """Get entity name from sequential ID"""
         try:
             idx = int(sequential_id)
-            trainers = self.controller.get_trainer_data() or []
-            if 1 <= idx <= len(trainers):
-                row = trainers[idx - 1]
-                return row[1] if len(row) > 1 else None
-        except Exception:
-            return None
-        return None
+            if entity_type == "trainer":
+                data = self.controller.get_trainer_data()
+            elif entity_type == "user":
+                data = self.controller.get_user_data()
+            else:
+                return "unknown"
 
-    def _get_user_name_from_sequential_id(self, sequential_id: str):
-        """Resolve user name from table sequential ID using controller data."""
-        try:
-            idx = int(sequential_id)
-            users = self.controller.get_user_data() or []
-            if 1 <= idx <= len(users):
-                row = users[idx - 1]
-                return row[1] if len(row) > 1 else None
+            if 1 <= idx <= len(data):
+                row = data[idx - 1]
+                return row[1] if len(row) > 1 else entity_type
+            return entity_type
         except Exception:
-            return None
-        return None
+            return entity_type
 
     def _show_delete_confirmation(self, username: str) -> bool:
         """Show confirmation dialog for admin deletion"""
         import tkinter.messagebox as messagebox
-
         return messagebox.askyesno(
             "Confirm Deletion",
             f"Are you sure you want to delete the administrator '{username}'?\n\n"
@@ -414,18 +406,16 @@ class DashboardFrame(ctk.CTkFrame):
         )
 
     def _show_delete_confirmation_generic(self, entity_label: str, name: str) -> bool:
-        """Generic confirmation dialog for entity deletion."""
+        """Generic confirmation dialog for entity deletion"""
         import tkinter.messagebox as messagebox
         return messagebox.askyesno(
             "Confirm Deletion",
-            (
-                f"Are you sure you want to delete the {entity_label} '{name}'?\n\n"
-                f"This action cannot be undone."
-            ),
-            icon="warning",
+            f"Are you sure you want to delete the {entity_label} '{name}'?\n\n"
+            f"This action cannot be undone.",
+            icon="warning"
         )
 
     def _show_error_dialog(self, title: str, message: str):
-        """Show a standard error dialog."""
+        """Show a standard error dialog"""
         import tkinter.messagebox as messagebox
         messagebox.showerror(title, message)
