@@ -185,108 +185,416 @@ class DashboardController:
         self, admin_data: Dict[str, Any], admin_form_or_id=None
     ) -> Dict[str, Any]:
         """Create or update admin"""
-        username = admin_data.get("username", "")
-        operation_key = f"save_admin_{username}"
+        return self._save_entity_unified("admin", admin_data, admin_form_or_id)
+
+    def save_trainer_data(
+        self, trainer_data: Dict[str, Any], form_or_id=None
+    ) -> Dict[str, Any]:
+        """Save trainer data"""
+        return self._save_entity_unified("trainer", trainer_data, form_or_id)
+
+    def save_user_data(
+        self, user_data: Dict[str, Any], form_or_id=None
+    ) -> Dict[str, Any]:
+        """Save user data"""
+        return self._save_entity_unified("user", user_data, form_or_id)
+
+    def _save_entity_unified(
+        self, entity_type: str, entity_data: Dict[str, Any], form_or_id=None
+    ) -> Dict[str, Any]:
+        """Unified save method for all entity types"""
+        # Get entity identifier for operation key
+        identifier = self._get_entity_identifier_for_key(entity_type, entity_data)
+        operation_key = f"save_{entity_type}_{identifier}"
 
         if self._prevent_duplicate_operation(operation_key):
             return {"success": False, "message": "Operation already in progress"}
 
         try:
             # Determine if updating
-            admin_id_to_update = None
-            if admin_form_or_id:
-                if isinstance(admin_form_or_id, (str, int)):
-                    admin_id_to_update = str(admin_form_or_id)
-                elif (
-                    hasattr(admin_form_or_id, "admin_to_edit")
-                    and admin_form_or_id.admin_to_edit
-                ):
-                    # Convert sequential ID to real ID
-                    sequential_id = admin_form_or_id.admin_to_edit
+            entity_id_to_update = self._resolve_entity_id_for_update(
+                entity_type, form_or_id
+            )
+
+            if entity_id_to_update:
+                return self._update_entity(
+                    entity_type, entity_data, entity_id_to_update
+                )
+            else:
+                return self._create_entity(entity_type, entity_data)
+
+        except Exception as e:
+            return self._handle_database_error(e, identifier)
+
+    def _get_entity_identifier_for_key(
+        self, entity_type: str, entity_data: Dict[str, Any]
+    ) -> str:
+        """Get identifier for operation key"""
+        if entity_type == "admin":
+            return entity_data.get("username", "")
+        else:  # trainer, user
+            return entity_data.get("name", "")
+
+    def _resolve_entity_id_for_update(
+        self, entity_type: str, form_or_id=None
+    ) -> Optional[str]:
+        """Resolve entity ID for update operations"""
+        if not form_or_id:
+            return None
+
+        # Direct ID passed
+        if isinstance(form_or_id, (str, int)):
+            if entity_type == "admin":
+                return str(form_or_id)
+            elif entity_type == "trainer":
+                return self._get_real_trainer_id(str(form_or_id))
+            elif entity_type == "user":
+                return self._get_real_user_id(str(form_or_id))
+
+        # Form object with entity_to_edit attribute
+        edit_attr = f"{entity_type}_to_edit"
+        if hasattr(form_or_id, edit_attr):
+            entity_to_edit = getattr(form_or_id, edit_attr)
+            if entity_to_edit:
+                if entity_type == "admin":
+                    # Convert sequential ID to real ID for admin
                     username_from_seq = self.get_admin_username_from_sequential_id(
-                        sequential_id
+                        entity_to_edit
                     )
                     if username_from_seq:
                         admin_data_list = self._get_cached_data("admins_extended")
                         for row in admin_data_list:
                             if row[1] == username_from_seq:
-                                admin_id_to_update = str(row[0])
-                                break
+                                return str(row[0])
+                elif entity_type == "trainer":
+                    return self._get_real_trainer_id(str(entity_to_edit))
+                elif entity_type == "user":
+                    return self._get_real_user_id(str(entity_to_edit))
 
-            if admin_id_to_update:
-                # UPDATE
-                existing_admin = get_admin(admin_id_to_update)
-                if not existing_admin:
-                    return {"success": False, "message": "Admin not found"}
+        return None
 
-                if admin_data.get("username"):
-                    existing_admin.username = admin_data["username"].strip()
-                if admin_data.get("password"):
-                    existing_admin.set_password(admin_data["password"])
-                if admin_data.get("role"):
-                    existing_admin.role = admin_data["role"]
+    def _update_entity(
+        self, entity_type: str, entity_data: Dict[str, Any], entity_id: str
+    ) -> Dict[str, Any]:
+        """Update existing entity"""
+        if entity_type == "admin":
+            return self._update_admin(entity_data, entity_id)
+        elif entity_type == "trainer":
+            return self._update_trainer(entity_data, entity_id)
+        elif entity_type == "user":
+            return self._update_user(entity_data, entity_id)
+        else:
+            return {"success": False, "message": f"Unknown entity type: {entity_type}"}
 
-                # Handle trainer association for managers
-                if admin_data.get("role") == "manager":
-                    trainer_id = admin_data.get("trainer_id")
-                    # Ensure we have a valid username before clearing associations
-                    username_to_clear = getattr(existing_admin, "username", None)
-                    if username_to_clear:
-                        self._clear_trainer_admin_association(str(username_to_clear))
+    def _create_entity(
+        self, entity_type: str, entity_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Create new entity"""
+        if entity_type == "admin":
+            return self._create_admin(entity_data)
+        elif entity_type == "trainer":
+            return self._create_trainer(entity_data)
+        elif entity_type == "user":
+            return self._create_user(entity_data)
+        else:
+            return {"success": False, "message": f"Unknown entity type: {entity_type}"}
 
-                    if trainer_id:
-                        real_trainer_id = self._get_real_trainer_id(trainer_id)
-                        trainer = get_trainer(real_trainer_id)
-                        if trainer:
-                            setattr(trainer, "admin_username", existing_admin.username)
-                            update_trainer(trainer)
-                else:
-                    # Ensure we have a valid username before clearing associations
-                    username_to_clear = getattr(existing_admin, "username", None)
-                    if username_to_clear:
-                        self._clear_trainer_admin_association(str(username_to_clear))
+    def _update_admin(
+        self, admin_data: Dict[str, Any], admin_id: str
+    ) -> Dict[str, Any]:
+        """Update existing admin"""
+        existing_admin = get_admin(admin_id)
+        if not existing_admin:
+            return {"success": False, "message": "Admin not found"}
 
-                update_admin(existing_admin)
-                self.invalidate_cache("admins")
-                self.invalidate_cache("trainers")
+        if admin_data.get("username"):
+            existing_admin.username = admin_data["username"].strip()
+        if admin_data.get("password"):
+            existing_admin.set_password(admin_data["password"])
+        if admin_data.get("role"):
+            existing_admin.role = admin_data["role"]
 
-                return {
-                    "success": True,
-                    "message": f"Administrator '{existing_admin.username}' updated successfully",
-                }
+        # Handle trainer association for managers
+        if admin_data.get("role") == "manager":
+            trainer_id = admin_data.get("trainer_id")
+            username_to_clear = getattr(existing_admin, "username", None)
+            if username_to_clear:
+                self._clear_trainer_admin_association(str(username_to_clear))
+
+            if trainer_id:
+                real_trainer_id = self._get_real_trainer_id(trainer_id)
+                trainer = get_trainer(real_trainer_id)
+                if trainer:
+                    setattr(trainer, "admin_username", existing_admin.username)
+                    update_trainer(trainer)
+        else:
+            username_to_clear = getattr(existing_admin, "username", None)
+            if username_to_clear:
+                self._clear_trainer_admin_association(str(username_to_clear))
+
+        update_admin(existing_admin)
+        self.invalidate_cache("admins")
+        self.invalidate_cache("trainers")
+
+        return {
+            "success": True,
+            "message": f"Administrator '{existing_admin.username}' updated successfully",
+        }
+
+    def _create_admin(self, admin_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create new admin"""
+        if not admin_data.get("password"):
+            return {"success": False, "message": "Password is required"}
+
+        admin = Admin(
+            username=admin_data.get("username"),
+            password=admin_data.get("password"),
+            role=admin_data.get("role", "admin"),
+        )
+
+        create_admin(admin)
+
+        # Handle trainer association for managers
+        if admin_data.get("role") == "manager" and admin_data.get("trainer_id"):
+            real_trainer_id = self._get_real_trainer_id(admin_data["trainer_id"])
+            trainer = get_trainer(real_trainer_id)
+            if trainer:
+                setattr(trainer, "admin_username", admin.username)
+                update_trainer(trainer)
+
+        self.invalidate_cache("admins")
+        self.invalidate_cache("trainers")
+
+        return {
+            "success": True,
+            "message": f"Administrator '{admin.username}' created successfully",
+        }
+
+    def _update_trainer(
+        self, trainer_data: Dict[str, Any], trainer_id: str
+    ) -> Dict[str, Any]:
+        """Update existing trainer"""
+        trainer = get_trainer(trainer_id)
+        if not trainer:
+            return {"success": False, "message": "Trainer not found"}
+
+        for key in [
+            "name",
+            "lastname",
+            "email",
+            "phone",
+            "age",
+            "specialty",
+            "start_time",
+            "end_time",
+        ]:
+            if key in trainer_data and trainer_data[key]:
+                val = trainer_data[key]
+                if key == "age" and val:
+                    try:
+                        val = int(val)
+                    except (ValueError, TypeError):
+                        val = None
+                if isinstance(val, str):
+                    val = val.strip()
+                if val:
+                    setattr(trainer, key, val)
+
+        update_trainer(trainer)
+        self.invalidate_cache("trainers")
+
+        return {
+            "success": True,
+            "message": f"Trainer '{getattr(trainer, 'name', 'record')}' updated successfully",
+        }
+
+    def _create_trainer(self, trainer_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create new trainer"""
+        from types import SimpleNamespace
+        from datetime import datetime
+
+        trainer = SimpleNamespace()
+        for key in [
+            "name",
+            "lastname",
+            "email",
+            "phone",
+            "age",
+            "specialty",
+            "start_time",
+            "end_time",
+        ]:
+            val = trainer_data.get(key)
+            if key == "age" and val:
+                try:
+                    val = int(val)
+                except (ValueError, TypeError):
+                    val = None
+            if isinstance(val, str) and val:
+                val = val.strip()
+            if val:
+                setattr(trainer, key, val)
+
+        if not hasattr(trainer, "age"):
+            setattr(trainer, "age", None)
+        if not hasattr(trainer, "created_at"):
+            setattr(trainer, "created_at", datetime.now().strftime("%Y-%m-%d %H:00"))
+
+        create_trainer(trainer)
+        self.invalidate_cache("trainers")
+
+        return {
+            "success": True,
+            "message": f"Trainer '{getattr(trainer, 'name', '')}' created successfully",
+        }
+
+    def _update_user(self, user_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        """Update existing user"""
+        user = get_user(user_id)
+        if not user:
+            return {"success": False, "message": "Member not found"}
+
+        for key in [
+            "name",
+            "lastname",
+            "email",
+            "phone",
+            "age",
+            "membership_type",
+            "status",
+        ]:
+            if key in user_data and user_data[key]:
+                val = user_data[key]
+                if key == "age" and val:
+                    try:
+                        val = int(val)
+                    except (ValueError, TypeError):
+                        val = None
+                if isinstance(val, str):
+                    val = val.strip()
+                if val:
+                    setattr(user, key, val)
+
+        update_user(user)
+        self.invalidate_cache("users")
+
+        return {
+            "success": True,
+            "message": f"Member '{getattr(user, 'name', 'record')}' updated successfully",
+        }
+
+    def _create_user(self, user_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create new user"""
+        from types import SimpleNamespace
+        from datetime import datetime
+
+        user = SimpleNamespace()
+        for key in [
+            "name",
+            "lastname",
+            "email",
+            "phone",
+            "age",
+            "membership_type",
+            "status",
+        ]:
+            val = user_data.get(key)
+            if key == "membership_type" and not val:
+                val = "Basic"
+            if key == "age" and val:
+                try:
+                    val = int(val)
+                except (ValueError, TypeError):
+                    val = None
+            if isinstance(val, str) and val:
+                val = val.strip()
+            if val:
+                setattr(user, key, val)
+
+        if not hasattr(user, "age"):
+            setattr(user, "age", None)
+        if not hasattr(user, "created_at"):
+            setattr(user, "created_at", datetime.now().strftime("%Y-%m-%d %H:00"))
+
+        create_user(user)
+        self.invalidate_cache("users")
+
+        return {
+            "success": True,
+            "message": f"Member '{getattr(user, 'name', '')}' created successfully",
+        }
+
+    def get_available_trainers_for_form(self) -> List[List[Any]]:
+        """Get trainers available for manager association"""
+        try:
+            trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
+            extended_admin_data = self._get_cached_data("admins_extended")
+
+            # Get associated trainer IDs
+            associated_trainer_ids = {
+                str(admin_row[4])
+                for admin_row in extended_admin_data
+                if len(admin_row) >= 5 and admin_row[4] is not None
+            }
+
+            # Filter available trainers
+            available_trainers = [
+                trainer_row
+                for trainer_row in trainers_with_real_ids
+                if str(trainer_row[0]) not in associated_trainer_ids
+            ]
+
+            # Return with sequential IDs (4 columns for form)
+            return [
+                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3]]
+                for idx, trainer_row in enumerate(available_trainers)
+            ]
+
+        except Exception:
+            return self._get_cached_data("trainers")[:4]  # Fallback
+
+    def _get_real_trainer_id(self, sequential_or_real_id: str) -> Optional[str]:
+        """Convert sequential trainer ID to real DB ID"""
+        try:
+            seq_id = int(sequential_or_real_id)
+            if 1 <= seq_id <= 1000:  # Sequential ID range
+                trainers = self._get_cached_data("trainers_with_real_ids")
+                if 1 <= seq_id <= len(trainers):
+                    return str(trainers[seq_id - 1][0])
+                return None
             else:
-                # CREATE
-                if not admin_data.get("password"):
-                    return {"success": False, "message": "Password is required"}
+                return str(sequential_or_real_id)  # Already real ID
+        except (ValueError, IndexError):
+            return str(sequential_or_real_id) if sequential_or_real_id else None
 
-                admin = Admin(
-                    username=admin_data.get("username"),
-                    password=admin_data.get("password"),
-                    role=admin_data.get("role", "admin"),
-                )
+    def _get_real_user_id(self, sequential_or_real_id: str) -> Optional[str]:
+        """Convert sequential user ID to real DB ID"""
+        try:
+            seq_id = int(sequential_or_real_id)
+            if 1 <= seq_id <= 100000:  # Sequential ID range
+                users = self._get_cached_data("users_with_real_ids")
+                if 1 <= seq_id <= len(users):
+                    return str(users[seq_id - 1][0])
+                return None
+            else:
+                return str(sequential_or_real_id)  # Already real ID
+        except (ValueError, IndexError):
+            return str(sequential_or_real_id) if sequential_or_real_id else None
 
-                create_admin(admin)
+    def _clear_trainer_admin_association(self, admin_username: str):
+        """Clear trainer associations for admin"""
+        if not admin_username or not isinstance(admin_username, str):
+            return  # Skip if username is None or not a string
 
-                # Handle trainer association for managers
-                if admin_data.get("role") == "manager" and admin_data.get("trainer_id"):
-                    real_trainer_id = self._get_real_trainer_id(
-                        admin_data["trainer_id"]
-                    )
-                    trainer = get_trainer(real_trainer_id)
-                    if trainer:
-                        setattr(trainer, "admin_username", admin.username)
-                        update_trainer(trainer)
-
-                self.invalidate_cache("admins")
-                self.invalidate_cache("trainers")
-
-                return {
-                    "success": True,
-                    "message": f"Administrator '{admin.username}' created successfully",
-                }
-
+        try:
+            all_trainers = get_all_trainers()
+            for trainer in all_trainers:
+                current_admin_username = getattr(trainer, "admin_username", None)
+                if current_admin_username and current_admin_username == admin_username:
+                    setattr(trainer, "admin_username", None)
+                    update_trainer(trainer)
         except Exception as e:
-            return self._handle_database_error(e, username)
+            print(f"Error clearing trainer associations: {e}")
 
     def delete_entity(
         self, current_admin, entity_type: str, entity_id: str
@@ -367,279 +675,6 @@ class DashboardController:
                 "success": False,
                 "message": f"Error deleting {entity_type}: {str(e)}",
             }
-
-    def save_trainer_data(
-        self, trainer_data: Dict[str, Any], form_or_id=None
-    ) -> Dict[str, Any]:
-        """Save trainer data"""
-        name = trainer_data.get("name", "")
-        operation_key = f"save_trainer_{name}"
-
-        if self._prevent_duplicate_operation(operation_key):
-            return {"success": False, "message": "Operation already in progress"}
-
-        try:
-            # Determine if updating
-            trainer_id = None
-            if form_or_id:
-                if isinstance(form_or_id, (str, int)):
-                    trainer_id = self._get_real_trainer_id(str(form_or_id))
-                elif hasattr(form_or_id, "trainer_to_edit"):
-                    trainer_id = self._get_real_trainer_id(
-                        str(form_or_id.trainer_to_edit)
-                    )
-
-            if trainer_id:
-                # UPDATE
-                trainer = get_trainer(trainer_id)
-                if not trainer:
-                    return {"success": False, "message": "Trainer not found"}
-
-                for key in [
-                    "name",
-                    "lastname",
-                    "email",
-                    "phone",
-                    "age",
-                    "specialty",
-                    "start_time",
-                    "end_time",
-                ]:
-                    if key in trainer_data and trainer_data[key]:
-                        val = trainer_data[key]
-                        if key == "age" and val:
-                            try:
-                                val = int(val)
-                            except (ValueError, TypeError):
-                                val = None
-                        if isinstance(val, str):
-                            val = val.strip()
-                        if val:
-                            setattr(trainer, key, val)
-
-                update_trainer(trainer)
-                self.invalidate_cache("trainers")
-
-                return {
-                    "success": True,
-                    "message": (f"Trainer '{getattr(trainer, 'name', 'record')}' "
-                                f"updated successfully"),
-                }
-            else:
-                # CREATE
-                from types import SimpleNamespace
-                from datetime import datetime
-
-                trainer = SimpleNamespace()
-                for key in [
-                    "name",
-                    "lastname",
-                    "email",
-                    "phone",
-                    "age",
-                    "specialty",
-                    "start_time",
-                    "end_time",
-                ]:
-                    val = trainer_data.get(key)
-                    if key == "age" and val:
-                        try:
-                            val = int(val)
-                        except (ValueError, TypeError):
-                            val = None
-                    if isinstance(val, str) and val:
-                        val = val.strip()
-                    if val:
-                        setattr(trainer, key, val)
-
-                if not hasattr(trainer, "age"):
-                    setattr(trainer, "age", None)
-                if not hasattr(trainer, "created_at"):
-                    setattr(
-                        trainer, "created_at", datetime.now().strftime("%Y-%m-%d %H:00")
-                    )
-
-                create_trainer(trainer)
-                self.invalidate_cache("trainers")
-
-                return {
-                    "success": True,
-                    "message": f"Trainer '{getattr(trainer, 'name', '')}' created successfully",
-                }
-
-        except Exception as e:
-            return self._handle_database_error(e, name)
-
-    def save_user_data(
-        self, user_data: Dict[str, Any], form_or_id=None
-    ) -> Dict[str, Any]:
-        """Save user data"""
-        name = user_data.get("name", "")
-        operation_key = f"save_user_{name}"
-
-        if self._prevent_duplicate_operation(operation_key):
-            return {"success": False, "message": "Operation already in progress"}
-
-        try:
-            # Determine if updating
-            user_id = None
-            if form_or_id:
-                if isinstance(form_or_id, (str, int)):
-                    user_id = self._get_real_user_id(str(form_or_id))
-                elif hasattr(form_or_id, "user_to_edit"):
-                    user_id = self._get_real_user_id(str(form_or_id.user_to_edit))
-
-            if user_id:
-                # UPDATE
-                user = get_user(user_id)
-                if not user:
-                    return {"success": False, "message": "Member not found"}
-
-                for key in [
-                    "name",
-                    "lastname",
-                    "email",
-                    "phone",
-                    "age",
-                    "membership_type",
-                    "status",
-                ]:
-                    if key in user_data and user_data[key]:
-                        val = user_data[key]
-                        if key == "age" and val:
-                            try:
-                                val = int(val)
-                            except (ValueError, TypeError):
-                                val = None
-                        if isinstance(val, str):
-                            val = val.strip()
-                        if val:
-                            setattr(user, key, val)
-
-                update_user(user)
-                self.invalidate_cache("users")
-
-                return {
-                    "success": True,
-                    "message": f"Member '{getattr(user, 'name', 'record')}' updated successfully",
-                }
-            else:
-                # CREATE
-                from types import SimpleNamespace
-                from datetime import datetime
-
-                user = SimpleNamespace()
-                for key in [
-                    "name",
-                    "lastname",
-                    "email",
-                    "phone",
-                    "age",
-                    "membership_type",
-                    "status",
-                ]:
-                    val = user_data.get(key)
-                    if key == "membership_type" and not val:
-                        val = "Basic"
-                    if key == "age" and val:
-                        try:
-                            val = int(val)
-                        except (ValueError, TypeError):
-                            val = None
-                    if isinstance(val, str) and val:
-                        val = val.strip()
-                    if val:
-                        setattr(user, key, val)
-
-                if not hasattr(user, "age"):
-                    setattr(user, "age", None)
-                if not hasattr(user, "created_at"):
-                    setattr(
-                        user, "created_at", datetime.now().strftime("%Y-%m-%d %H:00")
-                    )
-
-                create_user(user)
-                self.invalidate_cache("users")
-
-                return {
-                    "success": True,
-                    "message": f"Member '{getattr(user, 'name', '')}' created successfully",
-                }
-
-        except Exception as e:
-            return self._handle_database_error(e, name)
-
-    def get_available_trainers_for_form(self) -> List[List[Any]]:
-        """Get trainers available for manager association"""
-        try:
-            trainers_with_real_ids = self._get_cached_data("trainers_with_real_ids")
-            extended_admin_data = self._get_cached_data("admins_extended")
-
-            # Get associated trainer IDs
-            associated_trainer_ids = {
-                str(admin_row[4])
-                for admin_row in extended_admin_data
-                if len(admin_row) >= 5 and admin_row[4] is not None
-            }
-
-            # Filter available trainers
-            available_trainers = [
-                trainer_row
-                for trainer_row in trainers_with_real_ids
-                if str(trainer_row[0]) not in associated_trainer_ids
-            ]
-
-            # Return with sequential IDs (4 columns for form)
-            return [
-                [str(idx + 1), trainer_row[1], trainer_row[2], trainer_row[3]]
-                for idx, trainer_row in enumerate(available_trainers)
-            ]
-
-        except Exception:
-            return self._get_cached_data("trainers")[:4]  # Fallback
-
-    def _get_real_trainer_id(self, sequential_or_real_id: str) -> Optional[str]:
-        """Convert sequential trainer ID to real DB ID"""
-        try:
-            seq_id = int(sequential_or_real_id)
-            if 1 <= seq_id <= 1000:  # Sequential ID range
-                trainers = self._get_cached_data("trainers_with_real_ids")
-                if 1 <= seq_id <= len(trainers):
-                    return str(trainers[seq_id - 1][0])
-                return None
-            else:
-                return str(sequential_or_real_id)  # Already real ID
-        except (ValueError, IndexError):
-            return str(sequential_or_real_id) if sequential_or_real_id else None
-
-    def _get_real_user_id(self, sequential_or_real_id: str) -> Optional[str]:
-        """Convert sequential user ID to real DB ID"""
-        try:
-            seq_id = int(sequential_or_real_id)
-            if 1 <= seq_id <= 100000:  # Sequential ID range
-                users = self._get_cached_data("users_with_real_ids")
-                if 1 <= seq_id <= len(users):
-                    return str(users[seq_id - 1][0])
-                return None
-            else:
-                return str(sequential_or_real_id)  # Already real ID
-        except (ValueError, IndexError):
-            return str(sequential_or_real_id) if sequential_or_real_id else None
-
-    def _clear_trainer_admin_association(self, admin_username: str):
-        """Clear trainer associations for admin"""
-        if not admin_username or not isinstance(admin_username, str):
-            return  # Skip if username is None or not a string
-
-        try:
-            all_trainers = get_all_trainers()
-            for trainer in all_trainers:
-                current_admin_username = getattr(trainer, "admin_username", None)
-                if current_admin_username and current_admin_username == admin_username:
-                    setattr(trainer, "admin_username", None)
-                    update_trainer(trainer)
-        except Exception as e:
-            print(f"Error clearing trainer associations: {e}")
 
     # Legacy compatibility methods
     def delete_admin_with_permissions(self, current_admin, admin_id) -> Dict[str, Any]:
