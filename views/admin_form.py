@@ -66,8 +66,8 @@ class AdminFormView(ctk.CTkFrame):
         if not self.admin_to_edit:
             desc_text = "Enter the details for the administrator account"
         else:
-            username = self.controller.get_admin_username_from_cache(self.admin_to_edit)
-            desc_text = f"Modify the {username} account"
+            username = self.controller.get_admin_username_from_sequential_id(self.admin_to_edit)
+            desc_text = f"Modify the {username or 'administrator'} account"
 
         desc_label = ctk.CTkLabel(
             title_frame,
