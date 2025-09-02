@@ -663,7 +663,7 @@ class AdminFormView(ctk.CTkFrame):
         payload = data or self.get_form_data()
         try:
             if self.admin_to_edit:
-                return self.controller.update_entity_data("admin", payload, self)
-            return self.controller.create_entity_data("admin", payload)
+                return self.controller.save_admin_data(payload, self)
+            return self.controller.save_admin_data(payload)
         except Exception as e:
             return {"success": False, "message": f"Error saving administrator: {e}"}

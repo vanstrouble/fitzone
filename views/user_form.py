@@ -460,8 +460,8 @@ class UserFormView(ctk.CTkFrame):
         try:
             payload = data or self.get_form_data()
             if self.user_to_edit:
-                return self.controller.update_entity_data("user", payload, self)
-            return self.controller.create_entity_data("user", payload)
+                return self.controller.save_user_data(payload, self)
+            return self.controller.save_user_data(payload)
         except Exception as e:
             return {"success": False, "message": f"Error saving member: {e}"}
 

@@ -637,8 +637,8 @@ class TrainerFormView(ctk.CTkFrame):
         try:
             payload = data or self.get_form_data()
             if self.trainer_to_edit:
-                return self.controller.update_entity_data("trainer", payload, self)
-            return self.controller.create_entity_data("trainer", payload)
+                return self.controller.save_trainer_data(payload, self)
+            return self.controller.save_trainer_data(payload)
         except Exception as e:
             return {"success": False, "message": f"Error saving trainer: {e}"}
 
