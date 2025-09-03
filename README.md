@@ -53,7 +53,7 @@ FitZone is a comprehensive management system designed for gyms and fitness cente
    python app.py
    ```
 
-The application will launch with a login interface and automatically create the database on first run.
+The application will launch with a login interface and automatically create the database on first run. The default credentials are **admin** for both username and password.
 
 ### Dependencies
 
